@@ -299,14 +299,13 @@ describe('ChatScreen', () => {
         'setNewChatCompletionSettings',
       );
 
-      const {getByLabelText} = render(<ChatScreen />, {
+      const {findByLabelText} = render(<ChatScreen />, {
         withNavigation: true,
       });
 
-      // Initial state: thinkingEnabled defaults true → toggle label is
-      // "Disable thinking mode". Tapping it should write `false` into the
-      // override field.
-      const toggle = getByLabelText('Disable thinking mode');
+      // The Pal explicitly enables thinking, so the asynchronously resolved
+      // settings turn the opt-in default on for this chat.
+      const toggle = await findByLabelText('Disable thinking mode');
       await act(async () => {
         fireEvent.press(toggle);
       });
@@ -835,10 +834,10 @@ describe('ChatScreen on/off toggle → reasoning carrier (remote)', () => {
   // leaving params.reasoning undefined → buildReasoningPayload returns {}.
   it('off toggle yields reasoning.enabled false reaching buildReasoningPayload', async () => {
     useRemoteEffortUnknownModel();
-    const {getByLabelText} = render(<ChatScreen />, {withNavigation: true});
+    const {findByLabelText} = render(<ChatScreen />, {withNavigation: true});
 
-    // Default thinkingEnabled true → label is "Disable thinking mode".
-    const toggle = getByLabelText('Disable thinking mode');
+    // This session's persisted settings explicitly enable thinking.
+    const toggle = await findByLabelText('Disable thinking mode');
     await act(async () => {
       fireEvent.press(toggle);
     });

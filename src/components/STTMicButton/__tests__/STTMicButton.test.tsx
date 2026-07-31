@@ -22,6 +22,7 @@ describe('STTMicButton', () => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     (sttStore as any).isListening = false;
     (sttStore as any).modelsInstalled = true;
+    (sttStore as any).sessionState = {mode: 'idle'};
     (sttStore as any).isInstallingModels = false;
     (sttStore as any).modelDownloadProgress = 0;
   });
@@ -62,6 +63,28 @@ describe('STTMicButton', () => {
     (sttStore as any).isInstallingModels = true;
     const {getByTestId} = renderButton();
     fireEvent.press(getByTestId('stt-mic-button'));
+    expect(sttStore.start).not.toHaveBeenCalled();
+    expect(sttStore.stop).not.toHaveBeenCalled();
+  });
+
+  it('cannot start another recording while final transcription is processing', () => {
+    (sttStore as any).sessionState = {mode: 'processing'};
+    const {getByLabelText} = renderButton();
+
+    fireEvent.press(getByLabelText('Processing voice input'));
+
+    expect(sttStore.start).not.toHaveBeenCalled();
+    expect(sttStore.stop).not.toHaveBeenCalled();
+  });
+
+  it('shows a disabled ready indicator while the native models start', () => {
+    (sttStore as any).sessionState = {mode: 'starting'};
+    const {getByLabelText} = renderButton();
+    const button = getByLabelText('Starting voice input');
+
+    fireEvent.press(button);
+
+    expect(button).toBeDisabled();
     expect(sttStore.start).not.toHaveBeenCalled();
     expect(sttStore.stop).not.toHaveBeenCalled();
   });

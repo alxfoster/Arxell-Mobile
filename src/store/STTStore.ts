@@ -17,7 +17,8 @@ import type {
 } from '../services/stt/types';
 
 const DEFAULT_ENDPOINT: STTEndpointStrategyId = 'silero';
-const DEFAULT_ENDPOINT_SILENCE_MS = 700;
+const LEGACY_ENDPOINT_SILENCE_MS = 700;
+const DEFAULT_ENDPOINT_SILENCE_MS = 1200;
 const DEFAULT_AUTO_SUBMIT = true;
 const DEFAULT_ASR_ENGINE: STTASREngineId = 'moonshine';
 
@@ -66,6 +67,8 @@ export class STTStore {
   private initialized: boolean = false;
   private installPromise: Promise<void> | null = null;
   private appStateSubscription: {remove: () => void} | null = null;
+  /** Invalidates callbacks that arrive after a newer recording has started. */
+  private sessionGeneration: number = 0;
 
   constructor() {
     makeAutoObservable(this, {}, {autoBind: true});
@@ -83,6 +86,7 @@ export class STTStore {
 
   get isListening(): boolean {
     return (
+      this.sessionState.mode === 'starting' ||
       this.sessionState.mode === 'listening' ||
       this.sessionState.mode === 'processing'
     );
@@ -108,6 +112,15 @@ export class STTStore {
       // check so `modelsInstalled` reflects reality.
       await ensureBundledAssets();
       this.modelsInstalled = await areSTTModelsDownloaded();
+      // 700 ms was too aggressive for natural phrase pauses and frequently
+      // finalized while the speaker was beginning their last word. There is
+      // currently no UI for customizing this value, so migrate the old default
+      // in place while preserving any other programmatic/custom value.
+      if (this.endpointSilenceMs === LEGACY_ENDPOINT_SILENCE_MS) {
+        runInAction(() => {
+          this.endpointSilenceMs = DEFAULT_ENDPOINT_SILENCE_MS;
+        });
+      }
     } catch (err) {
       console.warn('[STTStore] model availability check failed:', err);
     }
@@ -115,9 +128,11 @@ export class STTStore {
 
   private handleAppStateChange = (nextAppState: AppStateStatus) => {
     if (nextAppState === 'background' || nextAppState === 'inactive') {
-      this.stop(false).catch(err => {
-        console.warn('[STTStore] background stop failed:', err);
-      });
+      this.stop(false)
+        .then(() => sttRuntime.release())
+        .catch(err => {
+          console.warn('[STTStore] background stop failed:', err);
+        });
     }
   };
 
@@ -197,11 +212,15 @@ export class STTStore {
     if (!this.isSTTEnabled || this.isListening || !this.modelsInstalled) {
       return;
     }
+    const generation = ++this.sessionGeneration;
     runInAction(() => {
       this.partialText = '';
       this.finalText = '';
       this.lastError = null;
-      this.sessionState = {mode: 'listening'};
+      // The microphone begins buffering immediately, but the native ASR/VAD
+      // sessions may still be loading. The button shows a ready indicator and
+      // cannot be tapped again during this short transition.
+      this.sessionState = {mode: 'starting'};
     });
 
     try {
@@ -213,12 +232,19 @@ export class STTStore {
         },
         {
           onPartialText: (text: string) => {
+            if (generation !== this.sessionGeneration) {
+              return;
+            }
             runInAction(() => {
               this.partialText = text;
             });
           },
           onFinalText: (text: string) => {
+            if (generation !== this.sessionGeneration) {
+              return;
+            }
             runInAction(() => {
+              this.partialText = text;
               this.finalText = text;
               this.sessionState = {mode: 'idle'};
             });
@@ -230,11 +256,17 @@ export class STTStore {
             });
           },
           onEndpoint: () => {
+            if (generation !== this.sessionGeneration) {
+              return;
+            }
             runInAction(() => {
               this.sessionState = {mode: 'processing'};
             });
           },
           onError: (err: unknown) => {
+            if (generation !== this.sessionGeneration) {
+              return;
+            }
             const message = err instanceof Error ? err.message : String(err);
             console.warn('[STTStore] session error:', message);
             runInAction(() => {
@@ -244,6 +276,11 @@ export class STTStore {
           },
         },
       );
+      runInAction(() => {
+        if (this.sessionState.mode === 'starting') {
+          this.sessionState = {mode: 'listening'};
+        }
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.warn('[STTStore] start failed:', message);
@@ -268,12 +305,23 @@ export class STTStore {
       return;
     }
     runInAction(() => {
-      this.sessionState = {mode: 'idle'};
+      // Keep the button in a busy state until queued audio and final inference
+      // complete. Returning to idle early allows a second tap to race the old
+      // recorder/transcriber and can truncate either session.
+      this.sessionState = finalize ? {mode: 'processing'} : {mode: 'idle'};
     });
     try {
       await sttRuntime.stopSession(finalize);
     } catch (err) {
       console.warn('[STTStore] stop failed:', err);
+    } finally {
+      // Invalidate any native line event delivered after stop/flush returns.
+      this.sessionGeneration += 1;
+      // onFinalText also sets idle; this covers silence-only recordings and
+      // teardown/error paths where no final callback is emitted.
+      runInAction(() => {
+        this.sessionState = {mode: 'idle'};
+      });
     }
   }
 }

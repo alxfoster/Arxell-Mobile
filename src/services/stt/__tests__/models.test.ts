@@ -14,21 +14,25 @@ const okDownload = () => ({
   promise: Promise.resolve({statusCode: 200}),
 });
 
-const TOTAL_FILES = STT_MODEL_META['moonshine-base'].files.length;
+const MODEL_ID = 'moonshine-tiny-streaming' as const;
+const MODEL_FILES = STT_MODEL_META[MODEL_ID].files;
+
+const modelPaths = () =>
+  MODEL_FILES.map(file => getModelFilePath(MODEL_ID, file.filename));
 
 describe('stt/models', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // RNFS.exists defaults to "nothing present"; tests flip specific paths on.
     (RNFS.exists as jest.Mock).mockResolvedValue(false);
     (RNFS.mkdir as jest.Mock).mockResolvedValue(undefined);
     (RNFS.unlink as jest.Mock).mockResolvedValue(undefined);
+    (RNFS.moveFile as jest.Mock).mockResolvedValue(undefined);
     (RNFS.downloadFile as jest.Mock).mockImplementation(() => okDownload());
   });
 
   const markPresent = (paths: string[]) => {
-    (RNFS.exists as jest.Mock).mockImplementation((p: string) =>
-      Promise.resolve(paths.includes(p)),
+    (RNFS.exists as jest.Mock).mockImplementation((path: string) =>
+      Promise.resolve(paths.includes(path)),
     );
   };
 
@@ -38,25 +42,14 @@ describe('stt/models', () => {
     markPresent([getModelFilePath('silero-vad', 'silero_vad.onnx')]);
     expect(await isModelDownloaded('silero-vad')).toBe(true);
 
-    expect(await isModelDownloaded('moonshine-base')).toBe(false);
-    markPresent([
-      getModelFilePath('moonshine-base', 'encoder_model.onnx'),
-      getModelFilePath('moonshine-base', 'decoder_model_merged.onnx'),
-      getModelFilePath('moonshine-base', 'tokenizer.bin'),
-      // keep silero present too so areSTTModelsDownloaded is well-defined
-      getModelFilePath('silero-vad', 'silero_vad.onnx'),
-    ]);
-    expect(await isModelDownloaded('moonshine-base')).toBe(true);
+    expect(await isModelDownloaded(MODEL_ID)).toBe(false);
+    markPresent(modelPaths());
+    expect(await isModelDownloaded(MODEL_ID)).toBe(true);
   });
 
-  it('areSTTModelsDownloaded requires every model fully installed', async () => {
+  it('areSTTModelsDownloaded requires the production streaming model', async () => {
     expect(await areSTTModelsDownloaded()).toBe(false);
-    markPresent([
-      getModelFilePath('silero-vad', 'silero_vad.onnx'),
-      getModelFilePath('moonshine-base', 'encoder_model.onnx'),
-      getModelFilePath('moonshine-base', 'decoder_model_merged.onnx'),
-      getModelFilePath('moonshine-base', 'tokenizer.bin'),
-    ]);
+    markPresent(modelPaths());
     expect(await areSTTModelsDownloaded()).toBe(true);
   });
 
@@ -73,25 +66,24 @@ describe('stt/models', () => {
 
   it('downloadSTTModels downloads every file and reports monotonic progress', async () => {
     const seen: number[] = [];
-    await downloadSTTModels(p => seen.push(p));
+    await downloadSTTModels(progress => seen.push(progress));
 
-    expect(RNFS.downloadFile).toHaveBeenCalledTimes(TOTAL_FILES);
+    expect(RNFS.downloadFile).toHaveBeenCalledTimes(MODEL_FILES.length);
+    expect(RNFS.moveFile).toHaveBeenCalledTimes(MODEL_FILES.length);
     for (let i = 1; i < seen.length; i++) {
       expect(seen[i]).toBeGreaterThanOrEqual(seen[i - 1]!);
     }
-    expect(seen[seen.length - 1]).toBe(1);
+    expect(seen.at(-1)).toBe(1);
   });
 
   it('downloadSTTModels deletes the partial file and rethrows on HTTP error', async () => {
-    // RNFS writes a partial file even on a failed HTTP response; mirror that
-    // so the cleanup branch actually hits `exists() -> true`.
     const written = new Set<string>();
-    (RNFS.downloadFile as jest.Mock).mockImplementation((opts: any) => {
-      written.add(opts.toFile);
+    (RNFS.downloadFile as jest.Mock).mockImplementation((options: any) => {
+      written.add(options.toFile);
       return {promise: Promise.resolve({statusCode: 404})};
     });
-    (RNFS.exists as jest.Mock).mockImplementation((p: string) =>
-      Promise.resolve(written.has(p)),
+    (RNFS.exists as jest.Mock).mockImplementation((path: string) =>
+      Promise.resolve(written.has(path)),
     );
 
     await expect(downloadSTTModels()).rejects.toThrow(/HTTP 404/);
@@ -99,18 +91,15 @@ describe('stt/models', () => {
   });
 
   it('downloadSTTModels skips files that already exist', async () => {
-    const presentPath = getModelFilePath(
-      'moonshine-base',
-      'encoder_model.onnx',
-    );
+    const presentPath = modelPaths()[0]!;
     markPresent([presentPath]);
 
     await downloadSTTModels();
 
     const fetched = (RNFS.downloadFile as jest.Mock).mock.calls.map(
-      (c: any) => c[0].toFile as string,
+      (call: any) => call[0].toFile as string,
     );
     expect(fetched).not.toContain(presentPath);
-    expect(fetched.length).toBe(TOTAL_FILES - 1);
+    expect(fetched.length).toBe(MODEL_FILES.length - 1);
   });
 });

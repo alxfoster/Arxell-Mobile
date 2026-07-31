@@ -1,55 +1,102 @@
 import {Platform} from 'react-native';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
-/**
- * Assets for the on-device STT pipeline.
- *
- *  - **Moonshine** (ASR): user-installed on first use. The native
- *    Moonshine loader requires its optimized `.ort` encoder and decoder
- *    files (not the sibling `.onnx` files) alongside the tokenizer.
- *
- *  - **Silero VAD**: bundled with the app (Android `assets/stt/`, iOS app
- *    bundle) — it is tiny infrastructure, never a user-facing download.
- *    `ensureBundledVAD()` copies it out of the bundle to the STT dir on
- *    first run; `isModelDownloaded('silero-vad')` then reports true.
- */
-export type STTModelId = 'moonshine-base' | 'silero-vad';
+/** Models used by the on-device STT pipeline. */
+export type STTModelId =
+  | 'moonshine-tiny-streaming'
+  | 'moonshine-base'
+  | 'silero-vad';
 
 interface ModelFile {
   filename: string;
   url: string;
+  sizeBytes?: number;
 }
 
 interface ModelMeta {
   id: STTModelId;
-  /** When `bundled` is true the asset ships in the app and is copied out of
-   *  the bundle on init (the `url` is an iOS-only fallback if the bundled
-   *  copy is absent). */
   bundled?: boolean;
+  /** Isolate architectures whose canonical filenames overlap. */
+  directory: string;
   files: readonly ModelFile[];
 }
 
 const MOONSHINE_BASE =
   'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/merged/base/quantized';
+const MOONSHINE_TINY_STREAMING =
+  'https://download.moonshine.ai/model/tiny-streaming-en/quantized';
 
 const MODELS: Record<STTModelId, ModelMeta> = {
+  'moonshine-tiny-streaming': {
+    id: 'moonshine-tiny-streaming',
+    directory: 'moonshine-tiny-streaming',
+    // Required files from Moonshine's native model dependency catalog. The
+    // attention decoder is intentionally omitted because word timestamps are
+    // disabled; this keeps the user download near 52 MB.
+    files: [
+      {
+        filename: 'adapter.ort',
+        url: `${MOONSHINE_TINY_STREAMING}/adapter.ort`,
+        sizeBytes: 1_319_440,
+      },
+      {
+        filename: 'cross_kv.ort',
+        url: `${MOONSHINE_TINY_STREAMING}/cross_kv.ort`,
+        sizeBytes: 1_264_384,
+      },
+      {
+        filename: 'decoder_kv.ort',
+        url: `${MOONSHINE_TINY_STREAMING}/decoder_kv.ort`,
+        sizeBytes: 32_403_688,
+      },
+      {
+        filename: 'encoder.ort',
+        url: `${MOONSHINE_TINY_STREAMING}/encoder.ort`,
+        sizeBytes: 7_569_200,
+      },
+      {
+        filename: 'frontend.ort',
+        url: `${MOONSHINE_TINY_STREAMING}/frontend.ort`,
+        sizeBytes: 8_324_600,
+      },
+      {
+        filename: 'streaming_config.json',
+        url: `${MOONSHINE_TINY_STREAMING}/streaming_config.json`,
+        sizeBytes: 509,
+      },
+      {
+        filename: 'tokenizer.bin',
+        url: `${MOONSHINE_TINY_STREAMING}/tokenizer.bin`,
+        sizeBytes: 249_974,
+      },
+    ],
+  },
+  // Kept so an existing installation is identifiable during migration and as
+  // a bounded offline diagnostic fallback. It is not downloaded for new users.
   'moonshine-base': {
     id: 'moonshine-base',
+    directory: 'moonshine-base',
     files: [
       {
         filename: 'encoder_model.ort',
         url: `${MOONSHINE_BASE}/encoder_model.ort`,
+        sizeBytes: 20_661_976,
       },
       {
         filename: 'decoder_model_merged.ort',
         url: `${MOONSHINE_BASE}/decoder_model_merged.ort`,
+        sizeBytes: 42_703_232,
       },
-      {filename: 'tokenizer.bin', url: `${MOONSHINE_BASE}/tokenizer.bin`},
+      {
+        filename: 'tokenizer.bin',
+        url: `${MOONSHINE_BASE}/tokenizer.bin`,
+      },
     ],
   },
   'silero-vad': {
     id: 'silero-vad',
     bundled: true,
+    directory: 'silero-vad',
     files: [
       {
         filename: 'silero_vad.onnx',
@@ -61,15 +108,26 @@ const MODELS: Record<STTModelId, ModelMeta> = {
 
 export type STTDownloadProgress = (progress: number) => void;
 
-/** Moonshine receives this directory as its modelPath. */
 export function sttModelsDir(): string {
   return Platform.OS === 'ios'
     ? `${RNFS.LibraryDirectoryPath}/Application Support/STT`
     : `${RNFS.DocumentDirectoryPath}/STT`;
 }
 
+export function getModelDir(id: STTModelId): string {
+  return `${sttModelsDir()}/${MODELS[id].directory}`;
+}
+
 export async function ensureSttModelsDir(): Promise<void> {
   const dir = sttModelsDir();
+  if (!(await RNFS.exists(dir))) {
+    await RNFS.mkdir(dir, {NSURLIsExcludedFromBackupKey: true});
+  }
+}
+
+async function ensureModelDir(id: STTModelId): Promise<void> {
+  await ensureSttModelsDir();
+  const dir = getModelDir(id);
   if (!(await RNFS.exists(dir))) {
     await RNFS.mkdir(dir, {NSURLIsExcludedFromBackupKey: true});
   }
@@ -80,11 +138,9 @@ export function getModelFilePath(id: STTModelId, filename: string): string {
   if (!file) {
     throw new Error(`Unknown file '${filename}' for STT model '${id}'`);
   }
-  return `${sttModelsDir()}/${file.filename}`;
+  return `${getModelDir(id)}/${file.filename}`;
 }
 
-/** True iff the model's files are present on disk (bundled models count
- *  once `ensureBundledAssets()` has copied them out of the app bundle). */
 export async function isModelDownloaded(id: STTModelId): Promise<boolean> {
   try {
     const checks = await Promise.all(
@@ -98,11 +154,8 @@ export async function isModelDownloaded(id: STTModelId): Promise<boolean> {
   }
 }
 
-/** Models the user must download (i.e. not bundled). */
-const USER_DOWNLOAD_MODELS: STTModelId[] = ['moonshine-base'];
+const USER_DOWNLOAD_MODELS: STTModelId[] = ['moonshine-tiny-streaming'];
 
-/** True once every user-downloadable STT model is present. Bundled models
- *  (VAD) are excluded — they are never a user's responsibility. */
 export async function areSTTModelsDownloaded(): Promise<boolean> {
   const installed = await Promise.all(
     USER_DOWNLOAD_MODELS.map(isModelDownloaded),
@@ -110,19 +163,14 @@ export async function areSTTModelsDownloaded(): Promise<boolean> {
   return installed.every(Boolean);
 }
 
-/**
- * Copy bundled STT assets (currently Silero VAD) out of the app bundle into
- * the STT directory. Safe to call on every init — skips files already
- * present. Called from `STTStore.init()` so the VAD is available before any
- * session starts, with no download step.
- */
+/** Copy the bundled VAD out of the application package on first run. */
 export async function ensureBundledAssets(): Promise<void> {
-  await ensureSttModelsDir();
   for (const id of Object.keys(MODELS) as STTModelId[]) {
     const meta = MODELS[id];
     if (!meta.bundled) {
       continue;
     }
+    await ensureModelDir(id);
     for (const file of meta.files) {
       const dest = getModelFilePath(id, file.filename);
       if (await RNFS.exists(dest)) {
@@ -130,12 +178,8 @@ export async function ensureBundledAssets(): Promise<void> {
       }
       try {
         if (Platform.OS === 'android') {
-          // Android: assets are inside the APK; copy out to a real path.
           await RNFS.copyFileAssets(`stt/${file.filename}`, dest);
         } else {
-          // iOS: the file ships in the main bundle (added to the target's
-          // "Copy Bundle Resources" phase). Fall back to download only if a
-          // future build forgets to include it.
           const bundled = `${RNFS.MainBundlePath}/stt/${file.filename}`;
           if (await RNFS.exists(bundled)) {
             await RNFS.copyFile(bundled, dest);
@@ -143,10 +187,10 @@ export async function ensureBundledAssets(): Promise<void> {
             await downloadOne(file, dest);
           }
         }
-      } catch (err) {
+      } catch (error) {
         console.warn(
           `[stt/models] bundled asset ${file.filename} failed:`,
-          err,
+          error,
         );
       }
     }
@@ -171,56 +215,71 @@ async function downloadOne(file: ModelFile, dest: string): Promise<void> {
   }
 }
 
-/** Downloads the user-installable STT assets (Moonshine). Bundled models
- *  (VAD) are never fetched here. Atomic enough for the UI: a partial install
- *  is never considered installed and can be safely retried. */
+/** Download the production streaming model after explicit user consent. */
 export async function downloadSTTModels(
   onProgress?: STTDownloadProgress,
 ): Promise<void> {
   const files = USER_DOWNLOAD_MODELS.flatMap(id =>
-    MODELS[id].files.map(f => ({id, ...f})),
+    MODELS[id].files.map(file => ({id, ...file})),
   );
   const progress = new Array(files.length).fill(0);
-  await ensureSttModelsDir();
+  const weights = files.map(file => file.sizeBytes ?? 1);
 
+  for (const id of USER_DOWNLOAD_MODELS) {
+    await ensureModelDir(id);
+  }
   for (let index = 0; index < files.length; index++) {
     const file = files[index]!;
     const destination = getModelFilePath(file.id, file.filename);
     if (await RNFS.exists(destination)) {
       progress[index] = 1;
-      onProgress?.(overall(progress, files.length));
+      onProgress?.(weightedOverall(progress, weights));
       continue;
+    }
+    // A killed/interrupted download must never look installed on the next
+    // launch merely because its destination exists. Download beside the final
+    // path and rename only after a successful HTTP completion.
+    const partialDestination = `${destination}.partial`;
+    if (await RNFS.exists(partialDestination)) {
+      await RNFS.unlink(partialDestination);
     }
     const result = await RNFS.downloadFile({
       fromUrl: file.url,
-      toFile: destination,
+      toFile: partialDestination,
       background: false,
       discretionary: false,
       cacheable: false,
-      progressInterval: 500,
+      progressInterval: 250,
       progress: update => {
         progress[index] = Math.min(
           1,
-          update.bytesWritten / Math.max(1, update.contentLength),
+          update.bytesWritten /
+            Math.max(1, update.contentLength || file.sizeBytes || 1),
         );
-        onProgress?.(overall(progress, files.length));
+        onProgress?.(weightedOverall(progress, weights));
       },
     }).promise;
     if (result.statusCode !== 200) {
-      if (await RNFS.exists(destination)) {
-        await RNFS.unlink(destination);
+      if (await RNFS.exists(partialDestination)) {
+        await RNFS.unlink(partialDestination);
       }
       throw new Error(
         `Failed to download ${file.filename}: HTTP ${result.statusCode}`,
       );
     }
+    await RNFS.moveFile(partialDestination, destination);
     progress[index] = 1;
-    onProgress?.(overall(progress, files.length));
+    onProgress?.(weightedOverall(progress, weights));
   }
 }
 
-const overall = (parts: number[], total: number) =>
-  parts.reduce((sum, value) => sum + value, 0) / total;
+const weightedOverall = (parts: number[], weights: number[]) => {
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  return (
+    parts.reduce((sum, value, index) => sum + value * weights[index]!, 0) /
+    Math.max(1, total)
+  );
+};
 
 export class STTModelNotInstalledError extends Error {
   constructor(id: STTModelId) {
@@ -237,7 +296,5 @@ export async function ensureModel(id: STTModelId): Promise<void> {
   }
 }
 
-/** Rough download size (MB) the user incurs for STT — Moonshine base int8. */
-export const STT_DOWNLOAD_SIZE_MB = 60;
-
+export const STT_DOWNLOAD_SIZE_MB = 52;
 export const STT_MODEL_META = MODELS;

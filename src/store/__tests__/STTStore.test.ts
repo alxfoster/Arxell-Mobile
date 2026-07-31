@@ -30,10 +30,12 @@ jest.mock('../../services/stt/models', () => ({
 
 const mockStartSession = jest.fn().mockResolvedValue(undefined);
 const mockStopSession = jest.fn().mockResolvedValue(undefined);
+const mockRelease = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../services/stt', () => ({
   sttRuntime: {
     startSession: (...args: any[]) => mockStartSession(...args),
     stopSession: (...args: any[]) => mockStopSession(...args),
+    release: (...args: any[]) => mockRelease(...args),
   },
 }));
 
@@ -61,6 +63,14 @@ describe('STTStore', () => {
       await store.init();
       await store.init();
       expect(appStateHandlers.length).toBe(1);
+    });
+
+    it('migrates the old aggressive endpoint delay', async () => {
+      store.endpointSilenceMs = 700;
+
+      await store.init();
+
+      expect(store.endpointSilenceMs).toBe(1200);
     });
 
     it('tears down on background', async () => {
@@ -126,6 +136,22 @@ describe('STTStore', () => {
       (store as any).modelsInstalled = true;
       await store.start();
       expect(mockStartSession).toHaveBeenCalledTimes(1);
+      expect(mockStartSession.mock.calls[0]![0].endpointSilenceMs).toBe(1200);
+      expect(store.sessionState.mode).toBe('listening');
+    });
+
+    it('exposes a starting state until the recorder and models are ready', async () => {
+      let ready!: () => void;
+      mockStartSession.mockImplementationOnce(
+        () => new Promise<void>(resolve => (ready = resolve)),
+      );
+      (store as any).modelsInstalled = true;
+
+      const starting = store.start();
+      expect(store.sessionState.mode).toBe('starting');
+
+      ready();
+      await starting;
       expect(store.sessionState.mode).toBe('listening');
     });
 
@@ -134,6 +160,40 @@ describe('STTStore', () => {
       (store as any).modelsInstalled = true;
       await store.start();
       expect(mockStartSession).not.toHaveBeenCalled();
+    });
+
+    it('ignores transcript events from a stopped session generation', async () => {
+      (store as any).modelsInstalled = true;
+      await store.start();
+      const oldCallbacks = mockStartSession.mock.calls[0]![1];
+      await store.stop(false);
+      await store.start();
+
+      oldCallbacks.onPartialText('stale words');
+      oldCallbacks.onFinalText('stale final');
+
+      expect(store.partialText).toBe('');
+      expect(store.finalText).toBe('');
+      expect(store.sessionState.mode).toBe('listening');
+    });
+  });
+
+  describe('stop()', () => {
+    it('stays in processing mode until explicit-stop finalization completes', async () => {
+      let finishStop!: () => void;
+      mockStopSession.mockImplementationOnce(
+        () => new Promise<void>(resolve => (finishStop = resolve)),
+      );
+      (store as any).modelsInstalled = true;
+      await store.start();
+
+      const stopping = store.stop(true);
+      expect(store.sessionState.mode).toBe('processing');
+
+      finishStop();
+      await stopping;
+      expect(store.sessionState.mode).toBe('idle');
+      expect(mockStopSession).toHaveBeenCalledWith(true);
     });
   });
 

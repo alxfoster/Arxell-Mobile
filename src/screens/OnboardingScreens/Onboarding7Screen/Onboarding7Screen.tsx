@@ -56,7 +56,7 @@ export const Onboarding7Screen: React.FC = observer(() => {
             <Text style={styles.body}>{t.body}</Text>
           </View>
           <View style={styles.options}>
-            {/* Voice input — Moonshine base int8 (~60 MB) */}
+            {/* Voice input — Moonshine tiny-streaming (~52 MB) */}
             <View style={styles.card}>
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>{t.sttTitle}</Text>

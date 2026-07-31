@@ -39,6 +39,44 @@ describe('chat', () => {
     expect(getByTestId('chat-action-rail')).toBeTruthy();
   });
 
+  it('sizes messages from the space left beside the action rail', () => {
+    const renderTextMessage = jest.fn(
+      (_message: MessageType.Text, _messageWidth: number, _showName: boolean) =>
+        null,
+    );
+    const {getByTestId} = render(
+      <ChatView
+        messages={[textMessage]}
+        onSendPress={jest.fn()}
+        renderTextMessage={renderTextMessage}
+        user={user}
+      />,
+      {withNavigation: true, withBottomSheetProvider: true},
+    );
+
+    fireEvent(getByTestId('chat-body'), 'layout', {
+      nativeEvent: {layout: {width: 296, height: 600}},
+    });
+
+    expect(renderTextMessage.mock.calls.at(-1)?.[1]).toBe(
+      Math.floor(296 * 0.92),
+    );
+  });
+
+  it('keeps the bottom chat input black with visible grey controls', () => {
+    const {getByLabelText, getByTestId} = render(
+      <ChatView messages={[]} onSendPress={jest.fn()} user={user} />,
+      {withNavigation: true, withBottomSheetProvider: true},
+    );
+
+    expect(getByTestId('chat-input-container')).toHaveStyle({
+      backgroundColor: '#000000',
+    });
+    expect(getByLabelText('Select Agent')).toHaveStyle({
+      backgroundColor: '#8A939C',
+    });
+  });
+
   it('renders image preview', async () => {
     const messages = [
       textMessage,

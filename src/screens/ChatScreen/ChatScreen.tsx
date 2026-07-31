@@ -123,7 +123,7 @@ export const ChatScreen: React.FC = observer(() => {
   const thinkingSupported =
     !!modelStore.activeModel && reasoningCapability.isReasoning !== 'no';
 
-  const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [reasoningEffort, setReasoningEffort] = useState<string | undefined>(
     undefined,
   );
@@ -134,7 +134,7 @@ export const ChatScreen: React.FC = observer(() => {
     let cancelled = false;
     chatSessionStore.getCurrentCompletionSettings().then(settings => {
       if (!cancelled) {
-        setThinkingEnabled(settings.enable_thinking ?? true);
+        setThinkingEnabled(settings.enable_thinking ?? false);
         setReasoningEffort(settings.reasoning?.effort);
       }
     });

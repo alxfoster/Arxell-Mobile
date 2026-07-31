@@ -40,7 +40,7 @@ export const createContextInitParams = (
     use_mmap,
     version: CURRENT_CONTEXT_INIT_PARAMS_VERSION,
     // Ensure all required fields have values (with fallbacks for safety)
-    n_ctx: params.n_ctx ?? 2048, // Increased default from 1024
+    n_ctx: params.n_ctx ?? 4096,
     n_batch: params.n_batch ?? 512,
     n_ubatch: params.n_ubatch ?? 512,
     n_threads: params.n_threads ?? 4,
@@ -237,7 +237,7 @@ export function validateContextInitParams(
 export function createDefaultContextInitParams(): ContextInitParams {
   return {
     version: CURRENT_CONTEXT_INIT_PARAMS_VERSION,
-    n_ctx: 2048,
+    n_ctx: 4096,
     n_batch: 512,
     n_ubatch: 512,
     n_threads: 4,

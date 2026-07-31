@@ -40,8 +40,8 @@ export type STTEndpointStrategyId = 'disabled' | 'basic' | 'silero';
 /**
  * - `disabled`: STT is off entirely (no mic button). Doubles as the feature
  *   gate while the subsystem matures.
- * - `basic`: energy/segment-based endpointing (whisper.rn realtime path, or
- *   a simple energy detector). Coarse; kept as a selectable fallback.
+ * - `basic`: Moonshine streaming without the external endpointer. It is a
+ *   manual tap-to-stop fallback; line completion does not end a long prompt.
  * - `silero`: frame-level Silero VAD on onnxruntime-react-native. Default.
  *   Gates audio before ASR (prevents Whisper/Moonshine silence hallucination)
  *   and provides precise endpointing for auto-submit.
@@ -67,6 +67,7 @@ export interface STTSettings {
 /** Lifecycle of a single dictation session. */
 export type STTSessionState =
   | {mode: 'idle'}
+  | {mode: 'starting'} // mic is open; native ASR/VAD sessions are loading
   | {mode: 'listening'}
   | {mode: 'processing'}; // endpoint detected, finalizing the utterance
 
@@ -128,15 +129,16 @@ export interface ASREngine {
     sampleRate: number,
     signal?: {aborted: boolean},
   ): Promise<string>;
-  /** Open a streaming session. Returns a stream id; push audio via
-   *  feedStream; receive partials/finals via onEvent. */
+  /** Open and start a streaming session. Returns a stream id; push audio via
+   *  feedStream. Line-completion events remain partial until endStream(). */
   startStream(onEvent: (e: ASRStreamEvent) => void): Promise<string>;
   feedStream(
     streamId: string,
     samples: number[],
     sampleRate: number,
   ): Promise<void>;
-  endStream(streamId: string): Promise<void>;
+  /** Stop/flush/remove the stream and return its authoritative assembled text. */
+  endStream(streamId: string): Promise<string>;
   cancelStream(streamId: string): Promise<void>;
   /** Release native resources (model sessions). Lazy re-init on next use. */
   release(): Promise<void>;

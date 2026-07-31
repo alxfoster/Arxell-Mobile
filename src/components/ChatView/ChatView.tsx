@@ -350,6 +350,10 @@ export const ChatView = observer(
 
     // ============ COMPONENT SIZE TRACKING ============
     const {onLayout, size} = useComponentSize();
+    // Message widths must be based on the actual message viewport, not the
+    // full ChatView. The right action rail makes those widths differ; using
+    // the outer width lets right-aligned messages overflow past the left edge.
+    const {onLayout: onLayoutChatBody, size: chatBodySize} = useComponentSize();
     const {onLayout: onLayoutChatInput, size: chatInputHeight} =
       useComponentSize();
 
@@ -537,28 +541,57 @@ export const ChatView = observer(
     );
 
     // ============ STT (voice input) ============
-    // Stream partial transcript into the input as the user speaks.
-    React.useEffect(() => {
-      if (sttStore.isListening) {
-        setInputText(sttStore.partialText);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sttStore.partialText, sttStore.isListening]);
+    // Voice owns only the text appended after the draft that existed when the
+    // mic opened. Revisable partials must not erase text the user typed first.
+    const latestInputTextRef = React.useRef(inputText);
+    const voiceDraftPrefixRef = React.useRef('');
+    const wasVoiceListeningRef = React.useRef(false);
+    latestInputTextRef.current = inputText;
+    const mergeVoiceText = React.useCallback(
+      (prefix: string, voice: string) => {
+        const left = prefix.trimEnd();
+        const right = voice.trimStart();
+        if (!left) {
+          return right;
+        }
+        return right ? `${left} ${right}` : left;
+      },
+      [],
+    );
 
-    // On final transcript: auto-submit, or leave in the input for review.
     React.useEffect(() => {
-      const text = sttStore.finalText;
-      if (!text) {
+      if (sttStore.isListening && !wasVoiceListeningRef.current) {
+        voiceDraftPrefixRef.current = latestInputTextRef.current;
+      }
+      wasVoiceListeningRef.current = sttStore.isListening;
+    }, [sttStore.isListening]);
+
+    // Stream the assembled stable + provisional transcript into the composer.
+    React.useEffect(() => {
+      if (sttStore.isListening && sttStore.partialText) {
+        setInputText(
+          mergeVoiceText(voiceDraftPrefixRef.current, sttStore.partialText),
+        );
+      }
+    }, [mergeVoiceText, sttStore.partialText, sttStore.isListening]);
+
+    // On final transcript: atomically apply the authoritative text, then
+    // auto-submit (or leave it in the composer for review).
+    React.useEffect(() => {
+      const voiceText = sttStore.finalText;
+      if (!voiceText) {
         return;
       }
+      const text = mergeVoiceText(voiceDraftPrefixRef.current, voiceText);
       if (sttStore.autoSubmit) {
         wrappedOnSendPress({type: 'text', text});
       } else {
         setInputText(text);
       }
+      voiceDraftPrefixRef.current = '';
       sttStore.clearFinalText();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sttStore.finalText]);
+    }, [mergeVoiceText, sttStore.finalText]);
 
     const handleCancelEdit = React.useCallback(() => {
       setInputText('');
@@ -847,9 +880,7 @@ export const ChatView = observer(
     // `messages` is newest-first. Keep generation stats on the newest
     // assistant response even when a newer user message is present.
     const newestAssistantMessageId =
-      messages.find(
-        message => message.author?.id !== user.id,
-      )?.id ?? null;
+      messages.find(message => message.author?.id !== user.id)?.id ?? null;
     const agentStatus = chatSessionStore.agentUiState.status;
     const isAgentActive =
       agentStatus === 'prefill' ||
@@ -880,8 +911,8 @@ export const ChatView = observer(
           showUserAvatars &&
           message.type !== 'dateHeader' &&
           message.author?.id !== user.id
-            ? Math.floor(Math.min(size.width * 0.9, 900))
-            : Math.floor(Math.min(size.width * 0.92, 900));
+            ? Math.floor(Math.min(chatBodySize.width * 0.9, 900))
+            : Math.floor(Math.min(chatBodySize.width * 0.92, 900));
 
         const roundBorder =
           message.type !== 'dateHeader' && message.nextMessageInGroup;
@@ -942,7 +973,7 @@ export const ChatView = observer(
         renderImageMessage,
         renderTextMessage,
         showUserAvatars,
-        size.width,
+        chatBodySize.width,
         usePreviewData,
         user.id,
         isAgentActive,
@@ -1135,9 +1166,10 @@ export const ChatView = observer(
     }, []);
 
     // ============ COMPUTED VALUES ============
-    const inputBackgroundColor = activePal?.color?.[1]
-      ? activePal.color?.[1]
-      : theme.colors.surface;
+    // The composer must remain visually anchored to the dark chat chrome.
+    // Do not derive this from the active pal or current theme: those values can
+    // change while navigating through Settings and previously turned it white.
+    const inputBackgroundColor = '#000000';
 
     // Soft cap: warn the user before the 5th HTML preview in this session.
     // Memory pressure on budget Android becomes a hazard above 5 WebViews;
@@ -1178,7 +1210,10 @@ export const ChatView = observer(
           <Reanimated.View style={styles.chatContainer}>
             {/* Reserve a slim right rail so messages never render underneath
                 present or future common chat actions. */}
-            <View style={styles.chatBody}>
+            <View
+              testID="chat-body"
+              style={styles.chatBody}
+              onLayout={onLayoutChatBody}>
               {customContent}
               {renderChatList()}
             </View>
@@ -1194,6 +1229,7 @@ export const ChatView = observer(
 
             {/* Chat input */}
             <Reanimated.View
+              testID="chat-input-container"
               onLayout={onLayoutChatInput}
               style={[
                 styles.inputContainer,

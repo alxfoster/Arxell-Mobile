@@ -28,7 +28,7 @@ Concretely, Arxell adds (and continues to develop):
 - **🎤 On-device Speech-to-Text (voice input)** via [Moonshine](https://github.com/UsefulSensors/moonshine) (Useful Sensors), integrated through [`@siteed/moonshine.rn`](https://github.com/deeeed/audiolab). Tap the mic, speak, and your words stream into the chat — transcribed locally, never sent to a server.
 - **🔊 Voice-gated capture** with a bundled [Silero VAD](https://github.com/snakers4/silero-vad) so the recognizer only fires on actual speech (no silence hallucination, precise end-of-speech endpointing).
 - **🧭 A unified voice + brains setup** in onboarding: the first-run flow detects your LLM, voice-input (Moonshine), and voice-output (Kokoro TTS) models and offers one-tap installs for each.
-- **🎯 Small-model focus** — we default to Moonshine **base int8** (~60 MB) so the voice-input download stays small, and treat the VAD as bundled infrastructure rather than another thing the user must fetch.
+- **🎯 Small-model focus** — we default to Moonshine **tiny-streaming** (~52 MB) for responsive incremental voice input, and treat the VAD as bundled infrastructure rather than another thing the user must fetch.
 
 Everything else — the offline LLM engine, agents, tool use, TTS, hardware acceleration — is inherited from PocketPal AI. We aim to stay close to upstream and contribute back where it makes sense.
 
@@ -51,18 +51,18 @@ Everything else — the offline LLM engine, agents, tool use, TTS, hardware acce
 
 Arxell inherits PocketPal's four-layer stack, from the silicon up to the chat UI. Each layer has one job, and the dependency direction is strictly top-down — the JS app talks to native bridges, bridges talk to inference engines, engines target hardware backends.
 
-| Layer | What runs here |
-| --- | --- |
-| **UI & Tool Use** | The React Native app (UI via React Native Paper, state via MobX, chat history in WatermelonDB). The **`AgentRunner`** drives each chat turn — streaming tokens, dispatching **Talents** (tools) when the model calls them, and feeding results back for follow-up reasoning. Arxell adds the **STT pipeline** (mic → Silero VAD → Moonshine) here. |
-| **Bridging** | Native modules that connect JavaScript to the engines. [`llama.rn`](https://github.com/mybigday/llama.rn) bridges LLM inference; [`@pocketpalai/react-native-speech`](https://github.com/a-ghorbani/react-native-speech) and `onnxruntime-react-native` bridge text-to-speech; [`@siteed/moonshine.rn`](https://github.com/deeeed/audiolab) bridges speech-to-text. |
-| **Engine** | The inference engines. **llama.cpp** runs language models in the quantized **GGUF** format. **ONNX Runtime** runs TTS voice models and the Silero VAD / Moonshine ASR models in the **ONNX** format. |
-| **Hardware** | Where the math actually happens. Targets **CPU** (universal fallback), **GPU** (Metal on iOS, OpenCL on Qualcomm Adreno for Android), and **NPU** (Qualcomm Hexagon) — falling back gracefully. |
+| Layer             | What runs here                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **UI & Tool Use** | The React Native app (UI via React Native Paper, state via MobX, chat history in WatermelonDB). The **`AgentRunner`** drives each chat turn — streaming tokens, dispatching **Talents** (tools) when the model calls them, and feeding results back for follow-up reasoning. Arxell adds the **STT pipeline** (mic → Silero VAD → Moonshine) here.                  |
+| **Bridging**      | Native modules that connect JavaScript to the engines. [`llama.rn`](https://github.com/mybigday/llama.rn) bridges LLM inference; [`@pocketpalai/react-native-speech`](https://github.com/a-ghorbani/react-native-speech) and `onnxruntime-react-native` bridge text-to-speech; [`@siteed/moonshine.rn`](https://github.com/deeeed/audiolab) bridges speech-to-text. |
+| **Engine**        | The inference engines. **llama.cpp** runs language models in the quantized **GGUF** format. **ONNX Runtime** runs TTS voice models and the Silero VAD / Moonshine ASR models in the **ONNX** format.                                                                                                                                                                |
+| **Hardware**      | Where the math actually happens. Targets **CPU** (universal fallback), **GPU** (Metal on iOS, OpenCL on Qualcomm Adreno for Android), and **NPU** (Qualcomm Hexagon) — falling back gracefully.                                                                                                                                                                     |
 
 ## Using the app
 
 1. **Install** Arxell.
 2. **Download a model** — open the menu (☰) → **Models**, pick one that fits your phone, and download (or add one from Hugging Face).
-3. **(Optional) Set up voice** — in onboarding or from the chat input, install **Voice input** (Moonshine, ~60 MB) and/or **Voice output** (Kokoro) so you can speak to your agent and hear it reply.
+3. **(Optional) Set up voice** — in onboarding or from the chat input, install **Voice input** (Moonshine streaming, ~52 MB) and/or **Voice output** (Kokoro) so you can speak to your agent and hear it reply.
 4. **Load a model and start chatting** — tap the mic to dictate, or type.
 
 ## For developers
@@ -107,12 +107,12 @@ yarn l10n:validate  # validate locale JSON (placeholders, integrity)
 mic (16 kHz mono PCM)
   → bundled Silero VAD (onnxruntime-react-native)
   → gated speech segment
-  → Moonshine base int8 (ASR, via @siteed/moonshine.rn)
+  → Moonshine tiny-streaming (ASR, via @siteed/moonshine.rn)
   → streaming transcript → chat input → (auto)submit
 ```
 
 - **VAD** (`silero_vad.onnx`) is **bundled** in the app (`android/app/src/main/assets/stt/`, iOS app bundle) — never a user download.
-- **Moonshine base int8** (~60 MB) is user-installed on first use from HuggingFace.
+- **Moonshine tiny-streaming** (~52 MB) is user-installed on first use from Moonshine's model CDN.
 - See `src/services/stt/` (runtime, engines, models, VAD) and `src/store/STTStore.ts`.
 
 ## Contributing
@@ -153,4 +153,5 @@ Made with ❤️ for people who want AI — and now a voice for it — that stay
 <br/>
 
 <sub>Arxell is a fork of PocketPal AI and is not affiliated with or endorsed by the PocketPal AI project.</sub>
+
 </div>

@@ -29,7 +29,7 @@ import {useTheme} from '../../hooks';
 
 import {createStyles} from './styles';
 
-import {chatSessionStore, modelStore, palStore, uiStore} from '../../store';
+import {chatSessionStore, modelStore, palStore} from '../../store';
 
 import {MessageType} from '../../utils/types';
 import {L10nContext, UserContext} from '../../utils';
@@ -108,6 +108,10 @@ export interface ChatInputAdditionalProps {
 }
 
 export type ChatInputProps = ChatInputTopLevelProps & ChatInputAdditionalProps;
+
+// Stable neutral foreground for every control rendered on the permanently
+// black composer. It must not follow the light theme or an agent palette.
+const CHAT_INPUT_CONTROL_COLOR = '#8A939C';
 
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -359,7 +363,7 @@ export const ChatInput = observer(
       outputRange: ['0deg', '180deg'],
     });
 
-    const onSurfaceColor = currentActivePal?.color?.[0] || theme.colors.text;
+    const onSurfaceColor = CHAT_INPUT_CONTROL_COLOR;
     const onSurfaceColorVariant = onSurfaceColor + '55'; // for disabled state or placeholder text
     // // Plus button state
     const isPlusButtonEnabled = !isStreaming && isVisionEnabled;
@@ -527,15 +531,7 @@ export const ChatInput = observer(
                 <TouchableOpacity
                   style={[
                     styles.palBtn,
-                    {
-                      backgroundColor:
-                        uiStore.colorScheme === 'dark'
-                          ? theme.colors.inverseOnSurface
-                          : theme.colors.inverseSurface,
-                    },
-                    currentActivePal?.color && {
-                      backgroundColor: currentActivePal?.color?.[0],
-                    },
+                    {backgroundColor: CHAT_INPUT_CONTROL_COLOR},
                   ]}
                   onPress={onPalBtnPress}
                   accessibilityLabel="Select Agent"

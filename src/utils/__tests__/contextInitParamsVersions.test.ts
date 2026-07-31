@@ -33,6 +33,12 @@ describe('contextInitParamsVersions', () => {
       expect(contextInitParams.n_batch).toBe(512);
       expect(contextInitParams.flash_attn).toBe(false);
     });
+
+    it('should default to a 4096-token context', () => {
+      const contextInitParams = createContextInitParams({} as any);
+
+      expect(contextInitParams.n_ctx).toBe(4096);
+    });
   });
 
   describe('migrateContextInitParams', () => {
@@ -224,7 +230,7 @@ describe('contextInitParamsVersions', () => {
 
       expect(validateContextInitParams(defaultSettings)).toBe(true);
       expect(defaultSettings.version).toBe(CURRENT_CONTEXT_INIT_PARAMS_VERSION);
-      expect(defaultSettings.n_ctx).toBe(2048);
+      expect(defaultSettings.n_ctx).toBe(4096);
       expect(defaultSettings.n_batch).toBe(512);
       expect(defaultSettings.n_ubatch).toBe(512);
       expect(defaultSettings.n_threads).toBe(4);

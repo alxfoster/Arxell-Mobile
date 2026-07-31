@@ -31,6 +31,9 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
   const theme = useTheme();
   const styles = createStyles({theme});
   const listening = sttStore.isListening;
+  const starting = sttStore.sessionState.mode === 'starting';
+  const processing = sttStore.sessionState.mode === 'processing';
+  const busy = starting || processing;
   const shownError = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -46,13 +49,13 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
   }, [sttStore.lastError]);
 
   const handlePress = () => {
-    if (sttStore.isInstallingModels) {
+    if (sttStore.isInstallingModels || busy) {
       return;
     }
     if (!sttStore.modelsInstalled) {
       Alert.alert(
         'Install voice input?',
-        'Voice input downloads its speech-recognition model once (about 60 MB). Audio is processed on this device.',
+        'Voice input downloads its streaming speech-recognition model once (about 52 MB). Audio is processed on this device.',
         [
           {text: 'Cancel', style: 'cancel'},
           {
@@ -87,15 +90,20 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
       accessibilityLabel={
         sttStore.isInstallingModels
           ? `Installing voice input ${Math.round(sttStore.modelDownloadProgress * 100)}%`
-          : !sttStore.modelsInstalled
-            ? 'Install voice input'
-            : listening
-              ? 'Stop voice input'
-              : 'Start voice input'
+          : starting
+            ? 'Starting voice input'
+            : processing
+              ? 'Processing voice input'
+              : !sttStore.modelsInstalled
+                ? 'Install voice input'
+                : listening
+                  ? 'Stop voice input'
+                  : 'Start voice input'
       }
+      disabled={busy || sttStore.isInstallingModels}
       testID="stt-mic-button"
       style={[styles.button, listening && styles.buttonListening]}>
-      {sttStore.isInstallingModels ? (
+      {sttStore.isInstallingModels || busy ? (
         <ActivityIndicator size={20} />
       ) : (
         <Icon

@@ -990,12 +990,7 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1563,7 +1558,7 @@
       "titleAccent": "voice.",
       "body": "Optional — install speech recognition and a voice so you can talk to your agent. Everything runs on this device.",
       "sttTitle": "Voice input",
-      "sttSubtitle": "Moonshine · ~60 MB · talk instead of type",
+      "sttSubtitle": "Moonshine streaming · ~52 MB · talk instead of type",
       "ttsTitle": "Voice output",
       "ttsSubtitle": "Kokoro · read repliess aloud",
       "install": "Install",

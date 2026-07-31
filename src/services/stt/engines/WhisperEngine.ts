@@ -39,7 +39,7 @@ export class WhisperEngine implements ASREngine {
     throw NOT_IMPLEMENTED('feedStream');
   }
 
-  async endStream(): Promise<void> {
+  async endStream(): Promise<string> {
     throw NOT_IMPLEMENTED('endStream');
   }
 

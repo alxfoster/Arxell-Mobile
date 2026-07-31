@@ -148,7 +148,7 @@ export const VoiceChip: React.FC<VoiceChipProps> = observer(({color}) => {
           <ChevronDownIcon
             width={14}
             height={14}
-            stroke={theme.colors.onSurfaceVariant}
+            stroke={color ?? theme.colors.onSurfaceVariant}
           />
         </Pressable>
       </Animated.View>

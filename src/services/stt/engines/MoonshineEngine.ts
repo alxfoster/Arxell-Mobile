@@ -4,10 +4,11 @@ import Moonshine from '@siteed/moonshine.rn';
 import {
   ensureModel,
   ensureSttModelsDir,
+  getModelDir,
   isModelDownloaded,
-  sttModelsDir,
 } from '../models';
 import type {ASREngine, ASRStreamEvent, STTASREngineId} from '../types';
+import {TranscriptAssembler} from './TranscriptAssembler';
 
 /**
  * Moonshine ASR via @siteed/moonshine.rn (native TurboModule, MIT).
@@ -19,21 +20,21 @@ import type {ASREngine, ASRStreamEvent, STTASREngineId} from '../types';
  *
  * Two usage modes (see ASREngine):
  *  - Offline transcribe(): the 'silero' endpoint strategy's canonical path.
- *  - Streaming (startStream/feedStream): the 'basic' endpoint strategy, where
- *    Moonshine's own VAD + streaming emits partial/final line events.
+ *  - Streaming (startStream/feedStream): the live dictation path. Moonshine
+ *    emits revisable lines; line completion commits text but only an explicit
+ *    stream flush finalizes the whole utterance.
  *
- * ⚠️ LIKELY NEEDS RUNTIME TUNING:
- *  - MODEL_ARCH: 'base' for offline. The streaming path may require
- *    'base-streaming' model files — if createStream()/addAudioToStream()
- *    errors, switch MODEL_ARCH and host the corresponding files.
- *  - modelPath: createTranscriberFromFiles expects a *directory*; confirm the
- *    files/filenames Moonshine's loader wants match what you host in
- *    sttModelsDir() (see models.ts).
- *  - createTranscriberFromFiles return shape: README shows a transcriber
- *    instance; the native spec shows {success, transcriberId}. The code below
- *    handles both defensively.
+ * The production model is Moonshine tiny-streaming. Its seven required files
+ * live in an architecture-specific directory (see models.ts), avoiding the
+ * filename collisions that occur when offline and streaming variants share a
+ * root.
+ *
+ * createTranscriberFromFiles return shape: README shows a transcriber
+ * instance; the native spec shows {success, transcriberId}. The code below
+ * handles both defensively.
  */
-const MODEL_ARCH = 'base' as const;
+const MODEL_ID = 'moonshine-tiny-streaming' as const;
+const MODEL_ARCH = 'tiny-streaming' as const;
 
 type TranscriberLike = {
   transcribe?: (args: {
@@ -41,6 +42,9 @@ type TranscriberLike = {
     sampleRate: number;
   }) => Promise<{text?: string} | string>;
   createStream?: () => Promise<string>;
+  startStream?: (streamId: string) => Promise<unknown>;
+  stopStream?: (streamId: string) => Promise<unknown>;
+  removeStream?: (streamId: string) => Promise<unknown>;
   addAudioToStream?: (
     streamId: string,
     samples: number[],
@@ -57,12 +61,14 @@ export class MoonshineEngine implements ASREngine {
   readonly id: STTASREngineId = 'moonshine';
   private transcriber: TranscriberLike | null = null;
   private removeListener: (() => void) | null = null;
+  private activeStreamId: string | null = null;
+  private readonly transcript = new TranscriptAssembler();
 
   async isAvailable(): Promise<boolean> {
     if (Platform.OS === 'android' && Number(Platform.Version) < 35) {
       return false;
     }
-    return isModelDownloaded('moonshine-base');
+    return isModelDownloaded(MODEL_ID);
   }
 
   async init(): Promise<void> {
@@ -70,12 +76,15 @@ export class MoonshineEngine implements ASREngine {
       return;
     }
     await ensureSttModelsDir();
-    await ensureModel('moonshine-base');
+    await ensureModel(MODEL_ID);
     // createTranscriberFromFiles({modelArch, modelPath, options}).
     // modelPath is a directory; the loader resolves arch-specific files in it.
     const result: any = await (Moonshine as any).createTranscriberFromFiles({
       modelArch: MODEL_ARCH,
-      modelPath: sttModelsDir(),
+      modelPath: getModelDir(MODEL_ID),
+      // Let native Moonshine revise the active line frequently enough for a
+      // responsive composer without invoking inference per recorder frame.
+      updateIntervalMs: 300,
       options: {wordTimestamps: false},
     });
     // Defensive: README returns a transcriber; native spec returns {success, transcriberId}.
@@ -109,34 +118,54 @@ export class MoonshineEngine implements ASREngine {
   async startStream(onEvent: (e: ASRStreamEvent) => void): Promise<string> {
     await this.init();
     const t = this.transcriber!;
-    if (!t.createStream || !t.addListener) {
+    if (!t.createStream || !t.startStream || !t.addListener) {
       throw new Error('[MoonshineEngine] streaming unavailable on this handle');
     }
     const streamId = await t.createStream();
-    // Relay Moonshine line events -> ASRStreamEvent. Filter by transcriberId
-    // when present so concurrent transcribers don't cross-talk.
+    this.transcript.reset();
+    this.activeStreamId = streamId;
+    // Filter both transcriber and stream IDs. A delayed event from a removed
+    // stream must never overwrite the next dictation session.
     const mineId = t.transcriberId;
     this.removeListener?.();
     this.removeListener = t.addListener(event => {
       if (mineId && event?.transcriberId && event.transcriberId !== mineId) {
         return;
       }
-      const text: string = event?.line?.text ?? '';
+      if (event?.streamId && event.streamId !== this.activeStreamId) {
+        return;
+      }
+      const line = event?.line;
       switch (event?.type) {
         case 'lineStarted':
-          onEvent({type: 'partial', text: ''});
-          break;
         case 'lineUpdated':
         case 'lineTextChanged':
+        case 'lineCompleted': {
+          if (!line?.lineId) {
+            return;
+          }
+          const text = this.transcript.update({
+            lineId: String(line.lineId),
+            text: line.text ?? '',
+            isFinal: event.type === 'lineCompleted' || Boolean(line.isFinal),
+            startedAtMs: line.startedAtMs,
+          });
+          // A completed line is only a stable prefix. Silero/stopStream owns
+          // utterance completion, so every native line event remains partial.
           onEvent({type: 'partial', text});
           break;
-        case 'lineCompleted':
-          onEvent({type: 'final', text});
-          break;
+        }
         default:
           break;
       }
     });
+    try {
+      await t.startStream(streamId);
+    } catch (err) {
+      this.activeStreamId = null;
+      await t.removeStream?.(streamId).catch(() => {});
+      throw err;
+    }
     return streamId;
   }
 
@@ -152,21 +181,50 @@ export class MoonshineEngine implements ASREngine {
     await t.addAudioToStream(streamId, samples, sampleRate);
   }
 
-  async endStream(_streamId: string): Promise<void> {
-    // Moonshine finalizes via the lineCompleted event; nothing to await here.
+  async endStream(streamId: string): Promise<string> {
+    const t = this.transcriber;
+    if (!t) {
+      return this.transcript.text;
+    }
+    try {
+      await t.stopStream?.(streamId);
+      // stopStream force-flushes synchronously on both native wrappers and
+      // emits the final line updates before its promise resolves.
+      return this.transcript.text;
+    } finally {
+      await t
+        .removeStream?.(streamId)
+        .catch(err =>
+          console.warn('[MoonshineEngine] removeStream failed:', err),
+        );
+      if (this.activeStreamId === streamId) {
+        this.activeStreamId = null;
+      }
+    }
   }
 
-  async cancelStream(_streamId: string): Promise<void> {
+  async cancelStream(streamId: string): Promise<void> {
+    const t = this.transcriber;
     try {
-      await this.transcriber?.cancel?.();
+      await t?.stopStream?.(streamId);
     } catch (err) {
-      console.warn('[MoonshineEngine] cancel failed:', err);
+      console.warn('[MoonshineEngine] stopStream failed:', err);
+    }
+    try {
+      await t?.removeStream?.(streamId);
+    } catch (err) {
+      console.warn('[MoonshineEngine] removeStream failed:', err);
+    }
+    if (this.activeStreamId === streamId) {
+      this.activeStreamId = null;
     }
   }
 
   async release(): Promise<void> {
     this.removeListener?.();
     this.removeListener = null;
+    this.activeStreamId = null;
+    this.transcript.reset();
     try {
       if (
         this.transcriber?.releaseTranscriber &&
