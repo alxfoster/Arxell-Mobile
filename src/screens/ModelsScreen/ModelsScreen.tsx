@@ -6,7 +6,7 @@ import {v4 as uuidv4} from 'uuid';
 import 'react-native-get-random-values';
 import {observer} from 'mobx-react-lite';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import {pick, types} from '@react-native-documents/picker';
+import {pick, pickDirectory, types} from '@react-native-documents/picker';
 import {Portal, Snackbar} from 'react-native-paper';
 
 import {useTheme} from '../../hooks';
@@ -30,6 +30,10 @@ import {uiStore, modelStore, hfStore, UIStore, serverStore} from '../../store';
 import {L10nContext} from '../../utils';
 import {Model, ModelOrigin} from '../../utils/types';
 import {ErrorState} from '../../utils/errors';
+import NativeModelFolderImport from '../../specs/NativeModelFolderImport';
+
+const ANDROID_MODELS_FOLDER_URI =
+  'content://com.android.externalstorage.documents/document/primary%3ADownload%2FModels';
 
 export const ModelsScreen: React.FC = observer(() => {
   const l10n = useContext(L10nContext);
@@ -186,9 +190,16 @@ export const ModelsScreen: React.FC = observer(() => {
       return;
     }
 
-    pick({
-      type: Platform.OS === 'ios' ? 'public.data' : types.allFiles,
-    })
+    pick(
+      Platform.OS === 'android'
+        ? {
+            type: types.allFiles,
+            mode: 'open',
+            requestLongTermAccess: false,
+            initialDirectoryUrl: ANDROID_MODELS_FOLDER_URI,
+          }
+        : {type: 'public.data'},
+    )
       .then(async res => {
         let [file] = res;
         if (file) {
@@ -264,6 +275,91 @@ export const ModelsScreen: React.FC = observer(() => {
         }
       })
       .catch(e => console.log('No file picked, error: ', e.message));
+  };
+
+  const runFolderImport = async (treeUri: string, moveFiles: boolean) => {
+    if (!NativeModelFolderImport) {
+      Alert.alert('Folder import unavailable', 'This feature is Android-only.');
+      return;
+    }
+
+    setIsCopyingModel(true);
+    try {
+      const results = await NativeModelFolderImport.importModelFolder(
+        treeUri,
+        moveFiles,
+      );
+      let imported = 0;
+      const errors: string[] = [];
+      for (const result of results) {
+        if (result.destinationPath) {
+          const alreadyRegistered = modelStore.models.some(
+            model => model.fullPath === result.destinationPath,
+          );
+          if (!alreadyRegistered) {
+            await modelStore.addLocalModel(result.destinationPath);
+          }
+          imported++;
+        }
+        if (result.error) {
+          errors.push(`${result.sourceName}: ${result.error}`);
+        }
+      }
+
+      if (results.length === 0) {
+        Alert.alert(
+          'No GGUF models found',
+          'The selected folder and its subfolders did not contain any .gguf files.',
+        );
+      } else {
+        Alert.alert(
+          'Model folder imported',
+          `${imported} model${imported === 1 ? '' : 's'} imported.${
+            errors.length ? `\n\n${errors.join('\n')}` : ''
+          }`,
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Failed to import model folder',
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setIsCopyingModel(false);
+    }
+  };
+
+  const handleImportModelFolder = async () => {
+    if (isCopyingModel || Platform.OS !== 'android') {
+      return;
+    }
+    try {
+      const directory = await pickDirectory({
+        requestLongTermAccess: true,
+        initialDirectoryUrl: ANDROID_MODELS_FOLDER_URI,
+      });
+      Alert.alert(
+        'Import GGUF models',
+        'Copy keeps the files in the selected folder. Move removes each original only after its imported copy has been verified.',
+        [
+          {text: l10n.common.cancel, style: 'cancel'},
+          {
+            text: 'Copy',
+            onPress: () => runFolderImport(directory.uri, false),
+          },
+          {
+            text: 'Move',
+            onPress: () => runFolderImport(directory.uri, true),
+          },
+        ],
+      );
+    } catch (error) {
+      // Closing Android's directory picker is a normal cancellation path.
+      console.log(
+        'No model folder picked:',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   };
 
   const activeModelId = modelStore.activeModel?.id;
@@ -445,6 +541,7 @@ export const ModelsScreen: React.FC = observer(() => {
       <FABGroup
         onAddHFModel={() => setHFSearchVisible(true)}
         onAddLocalModel={handleAddLocalModel}
+        onImportModelFolder={handleImportModelFolder}
         onAddRemoteModel={handleAddRemoteModel}
         onManageServers={handleManageServers}
         hasServers={serverStore.servers.length > 0}

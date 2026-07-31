@@ -1,0 +1,785 @@
+diff --git a/node_modules/@pocketpalai/react-native-speech/lib/module/engines/StreamingChunker.js b/node_modules/@pocketpalai/react-native-speech/lib/module/engines/StreamingChunker.js
+index bc7c611..6b20adc 100644
+--- a/node_modules/@pocketpalai/react-native-speech/lib/module/engines/StreamingChunker.js
++++ b/node_modules/@pocketpalai/react-native-speech/lib/module/engines/StreamingChunker.js
+@@ -1,189 +1,242 @@
+-"use strict";
+-
+ /**
+- * StreamingChunker — incremental sentence-aware text splitter for
+- * streaming TTS.
++ * StreamingChunker — adaptive incremental text splitter for streaming TTS.
+  *
+- * Text is pushed in via `append()` as it arrives (e.g. LLM tokens).
+- * The consumer loop calls `getNextChunk()` which resolves as soon as
+- * a complete sentence is available, or returns `null` when the stream
+- * is finalized and the buffer is drained.
+- *
+- * All returned chunks carry absolute character offsets into the total
+- * appended text so progress events can map directly to the consumer's
+- * accumulated buffer.
+- */
+-
+-/**
+- * Sentence-boundary regex — matches ASCII punct + trailing whitespace,
+- * or CJK punct optionally followed by whitespace. Same rules as
+- * SpeechStream's `SENTENCE_END_RE`.
++ * Text is pushed in via `append()` as it arrives (for example, LLM tokens).
++ * The chunker favours natural boundaries, but also releases long clauses and
++ * stale text so speech does not have to wait for a complete sentence.
+  */
+-const SENTENCE_END_RE = /(?:[.!?]+\s+|[。！？]+\s*)/g;
++const PUNCTUATION_GRACE_MS = 120;
++const IDLE_FLUSH_MS = 500;
++const SOFT_WORD_LIMIT = 16;
++const CLAUSE_MIN_CHARS = 48;
++const HARD_LIMIT_CHARS = 140;
++const IDLE_MIN_CHARS = 24;
+ export class StreamingChunker {
+-  buffer = '';
+-  absoluteOffset = 0;
+-  finalized = false;
+-  cancelled = false;
+-  waiter = null;
+-  constructor(maxChunkSize = 400) {
+-    this.maxChunkSize = maxChunkSize;
+-  }
+-  append(text) {
+-    if (this.finalized || this.cancelled) {
+-      return;
+-    }
+-    this.buffer += text;
+-    this.wake();
+-  }
+-  finalize() {
+-    if (this.finalized || this.cancelled) {
+-      return;
+-    }
+-    this.finalized = true;
+-    this.wake();
+-  }
+-  cancel() {
+-    this.cancelled = true;
+-    this.buffer = '';
+-    if (this.waiter) {
+-      this.waiter(null);
+-      this.waiter = null;
+-    }
+-  }
+-
+-  /**
+-   * Returns the next chunk of complete sentence(s) up to
+-   * `maxChunkSize`. Blocks (via promise) until a sentence boundary
+-   * appears in the buffer, more text arrives, or finalize/cancel is
+-   * called.
+-   *
+-   * Returns `null` when the stream is fully consumed (finalized + buffer
+-   * drained) or cancelled.
+-   */
+-  async getNextChunk() {
+-    // Try synchronously first — avoids a microtask tick when data is ready.
+-    const immediate = this.tryTake();
+-    if (immediate !== undefined) {
+-      return immediate;
+-    }
+-
+-    // Block until append/finalize/cancel wakes us.
+-    return new Promise(resolve => {
+-      this.waiter = resolve;
+-    });
+-  }
+-
+-  /**
+-   * Non-blocking peek: returns the next chunk if one is ready right
+-   * now, or `undefined` (not `null`) if the consumer should wait.
+-   * `null` means stream is done.
+-   */
+-  tryPeek() {
+-    if (this.cancelled) {
+-      return null;
+-    }
+-    const chunk = this.extractReadyChunk();
+-    if (chunk) {
+-      return chunk;
+-    }
+-    if (this.finalized) {
+-      return this.extractRemainder();
+-    }
+-    return undefined;
+-  }
+-
+-  /** Total chars appended so far. */
+-  get totalAppended() {
+-    return this.absoluteOffset + this.buffer.length;
+-  }
+-
+-  // ── Private ──────────────────────────────────────────────────────
+-
+-  /**
+-   * Try to produce a result synchronously. Returns `undefined` when
+-   * the consumer should block.
+-   */
+-  tryTake() {
+-    if (this.cancelled) {
+-      return null;
+-    }
+-    const chunk = this.extractReadyChunk();
+-    if (chunk) {
+-      return chunk;
+-    }
+-    if (this.finalized) {
+-      return this.extractRemainder();
+-    }
+-    return undefined;
+-  }
+-
+-  /**
+-   * Extract complete sentence(s) from the front of the buffer, up to
+-   * `maxChunkSize`. Returns null if no sentence boundary is found.
+-   */
+-  extractReadyChunk() {
+-    const re = new RegExp(SENTENCE_END_RE.source, 'g');
+-    let m;
+-    let lastGoodEnd = -1;
+-    while ((m = re.exec(this.buffer)) !== null) {
+-      const candidateEnd = m.index + m[0].length;
+-      if (candidateEnd <= this.maxChunkSize || lastGoodEnd === -1) {
+-        lastGoodEnd = candidateEnd;
+-      }
+-      if (candidateEnd >= this.maxChunkSize && lastGoodEnd > 0) {
+-        break;
+-      }
+-    }
+-    if (lastGoodEnd === -1) {
+-      return null;
+-    }
+-    const end = lastGoodEnd;
+-    const text = this.buffer.slice(0, end);
+-    if (text.trim().length === 0) {
+-      return null;
+-    }
+-    const chunk = {
+-      text,
+-      startIndex: this.absoluteOffset,
+-      endIndex: this.absoluteOffset + end
+-    };
+-    this.buffer = this.buffer.slice(end);
+-    this.absoluteOffset += end;
+-    return chunk;
+-  }
+-
+-  /**
+-   * Drain whatever remains. Returns null if buffer is empty.
+-   */
+-  extractRemainder() {
+-    if (this.buffer.length === 0 || this.buffer.trim().length === 0) {
+-      this.buffer = '';
+-      return null;
+-    }
+-    const chunk = {
+-      text: this.buffer,
+-      startIndex: this.absoluteOffset,
+-      endIndex: this.absoluteOffset + this.buffer.length
+-    };
+-    this.absoluteOffset += this.buffer.length;
+-    this.buffer = '';
+-    return chunk;
+-  }
+-
+-  /**
+-   * Wake the blocked consumer if one is waiting.
+-   */
+-  wake() {
+-    if (!this.waiter) {
+-      return;
+-    }
+-    const result = this.tryTake();
+-    if (result !== undefined) {
+-      const w = this.waiter;
+-      this.waiter = null;
+-      w(result);
+-    }
+-  }
++    constructor(maxChunkSize = 400) {
++        this.buffer = '';
++        this.absoluteOffset = 0;
++        this.finalized = false;
++        this.cancelled = false;
++        this.lastAppendAt = 0;
++        this.wakeTimer = null;
++        this.waiter = null;
++        this.maxChunkSize = maxChunkSize;
++    }
++    append(text) {
++        if (this.finalized || this.cancelled || text.length === 0) {
++            return;
++        }
++        this.buffer += text;
++        this.lastAppendAt = Date.now();
++        this.scheduleTimedWake();
++        this.wake();
++    }
++    finalize() {
++        if (this.finalized || this.cancelled) {
++            return;
++        }
++        this.finalized = true;
++        this.clearWakeTimer();
++        this.wake();
++    }
++    cancel() {
++        this.cancelled = true;
++        this.buffer = '';
++        this.clearWakeTimer();
++        if (this.waiter) {
++            this.waiter(null);
++            this.waiter = null;
++        }
++    }
++    /** Return the next speakable chunk, waiting until one is ready. */
++    async getNextChunk() {
++        const immediate = this.tryTake();
++        if (immediate !== undefined) {
++            return immediate;
++        }
++        return new Promise(resolve => {
++            this.waiter = resolve;
++        });
++    }
++    /**
++     * Non-blocking peek. `undefined` means more input is needed; `null` means
++     * the stream is done. Calling this consumes a ready chunk.
++     */
++    tryPeek() {
++        return this.tryTake();
++    }
++    /** Total chars appended so far. */
++    get totalAppended() {
++        return this.absoluteOffset + this.buffer.length;
++    }
++    tryTake() {
++        if (this.cancelled) {
++            return null;
++        }
++        const chunk = this.extractReadyChunk();
++        if (chunk) {
++            return chunk;
++        }
++        if (this.finalized) {
++            return this.extractRemainder();
++        }
++        return undefined;
++    }
++    /**
++     * Pick the earliest useful boundary in priority order:
++     * strong punctuation, a sufficiently long comma clause, word count,
++     * hard character limit, then an inactivity flush.
++     */
++    extractReadyChunk() {
++        if (this.buffer.trim().length === 0) {
++            return null;
++        }
++        const age = this.lastAppendAt === 0 ? 0 : Date.now() - this.lastAppendAt;
++        let end = this.findStrongBoundary(age);
++        if (end === -1) {
++            end = this.findClauseBoundary();
++        }
++        if (end === -1) {
++            end = this.findWordBoundary(SOFT_WORD_LIMIT);
++        }
++        if (end === -1) {
++            end = this.findHardBoundary();
++        }
++        if (end === -1 &&
++            age >= IDLE_FLUSH_MS &&
++            this.buffer.trim().length >= IDLE_MIN_CHARS) {
++            end = this.buffer.length;
++        }
++        return end > 0 ? this.take(end) : null;
++    }
++    findStrongBoundary(age) {
++        // Newlines and clause punctuation are useful speaking boundaries. ASCII
++        // sentence punctuation at the current buffer end gets a short grace
++        // period, allowing quotes/markdown or whitespace from the next token to
++        // arrive without delaying it until generation completes.
++        const re = /[.!?]+|[。！？]+|[\n;:]+/g;
++        let match;
++        while ((match = re.exec(this.buffer)) !== null) {
++            let end = match.index + match[0].length;
++            const token = match[0];
++            const isAsciiSentence = /^[.!?]/.test(token);
++            // Include closing quotes/brackets in the spoken chunk. They commonly
++            // arrive in the same token as the period, so the period is not
++            // technically the final character even though the sentence is done.
++            while (end < this.buffer.length && /["'”’\])}]/.test(this.buffer[end])) {
++                end++;
++            }
++            const followedByWhitespace = /\s/.test(this.buffer.charAt(end));
++            if (isAsciiSentence &&
++                !followedByWhitespace &&
++                end === this.buffer.length &&
++                age < PUNCTUATION_GRACE_MS) {
++                continue;
++            }
++            if (isAsciiSentence && !followedByWhitespace && end < this.buffer.length) {
++                continue;
++            }
++            while (end < this.buffer.length && /\s/.test(this.buffer.charAt(end))) {
++                end++;
++            }
++            if (end > Math.min(HARD_LIMIT_CHARS, this.maxChunkSize)) {
++                return -1;
++            }
++            return end;
++        }
++        return -1;
++    }
++    findClauseBoundary() {
++        const re = /[,，]\s*/g;
++        let match;
++        while ((match = re.exec(this.buffer)) !== null) {
++            const end = match.index + match[0].length;
++            if (end >= CLAUSE_MIN_CHARS) {
++                return end;
++            }
++        }
++        return -1;
++    }
++    findWordBoundary(wordLimit) {
++        const re = /\S+\s+/g;
++        let words = 0;
++        let match;
++        while ((match = re.exec(this.buffer)) !== null) {
++            words++;
++            if (words >= wordLimit) {
++                return match.index + match[0].length;
++            }
++        }
++        return -1;
++    }
++    findHardBoundary() {
++        const limit = Math.min(HARD_LIMIT_CHARS, this.maxChunkSize);
++        if (this.buffer.length < limit) {
++            return -1;
++        }
++        // Prefer the final whitespace before the limit. If a long unbroken token
++        // has none, cut at the limit so malformed/model-generated text cannot
++        // grow the synthesis buffer without bound.
++        for (let i = limit; i > 0; i--) {
++            if (/\s/.test(this.buffer.charAt(i - 1))) {
++                return i;
++            }
++        }
++        return limit;
++    }
++    take(end) {
++        const text = this.buffer.slice(0, end);
++        if (text.trim().length === 0) {
++            return null;
++        }
++        const chunk = {
++            text,
++            startIndex: this.absoluteOffset,
++            endIndex: this.absoluteOffset + end,
++        };
++        this.buffer = this.buffer.slice(end);
++        this.absoluteOffset += end;
++        this.scheduleTimedWake();
++        return chunk;
++    }
++    extractRemainder() {
++        if (this.buffer.length === 0 || this.buffer.trim().length === 0) {
++            this.buffer = '';
++            return null;
++        }
++        return this.take(this.buffer.length);
++    }
++    scheduleTimedWake() {
++        this.clearWakeTimer();
++        if (this.finalized || this.cancelled || this.buffer.length === 0) {
++            return;
++        }
++        const endsInSentencePunctuation = /[.!?]["'”’\])}]*$/.test(this.buffer);
++        const delay = endsInSentencePunctuation
++            ? PUNCTUATION_GRACE_MS
++            : IDLE_FLUSH_MS;
++        const elapsed = this.lastAppendAt === 0 ? 0 : Date.now() - this.lastAppendAt;
++        this.wakeTimer = setTimeout(() => {
++            this.wakeTimer = null;
++            this.wake();
++        }, Math.max(0, delay - elapsed));
++    }
++    clearWakeTimer() {
++        if (this.wakeTimer) {
++            clearTimeout(this.wakeTimer);
++            this.wakeTimer = null;
++        }
++    }
++    wake() {
++        if (!this.waiter) {
++            return;
++        }
++        const result = this.tryTake();
++        if (result !== undefined) {
++            const waiter = this.waiter;
++            this.waiter = null;
++            waiter(result);
++        }
++    }
+ }
+ //# sourceMappingURL=StreamingChunker.js.map
+diff --git a/node_modules/@pocketpalai/react-native-speech/src/engines/StreamingChunker.ts b/node_modules/@pocketpalai/react-native-speech/src/engines/StreamingChunker.ts
+index 54ab018..9a67668 100644
+--- a/node_modules/@pocketpalai/react-native-speech/src/engines/StreamingChunker.ts
++++ b/node_modules/@pocketpalai/react-native-speech/src/engines/StreamingChunker.ts
+@@ -1,25 +1,19 @@
+ /**
+- * StreamingChunker — incremental sentence-aware text splitter for
+- * streaming TTS.
++ * StreamingChunker — adaptive incremental text splitter for streaming TTS.
+  *
+- * Text is pushed in via `append()` as it arrives (e.g. LLM tokens).
+- * The consumer loop calls `getNextChunk()` which resolves as soon as
+- * a complete sentence is available, or returns `null` when the stream
+- * is finalized and the buffer is drained.
+- *
+- * All returned chunks carry absolute character offsets into the total
+- * appended text so progress events can map directly to the consumer's
+- * accumulated buffer.
++ * Text is pushed in via `append()` as it arrives (for example, LLM tokens).
++ * The chunker favours natural boundaries, but also releases long clauses and
++ * stale text so speech does not have to wait for a complete sentence.
+  */
+ 
+ import type {TextChunk} from '../utils/TextChunker';
+ 
+-/**
+- * Sentence-boundary regex — matches ASCII punct + trailing whitespace,
+- * or CJK punct optionally followed by whitespace. Same rules as
+- * SpeechStream's `SENTENCE_END_RE`.
+- */
+-const SENTENCE_END_RE = /(?:[.!?]+\s+|[。！？]+\s*)/g;
++const PUNCTUATION_GRACE_MS = 120;
++const IDLE_FLUSH_MS = 500;
++const SOFT_WORD_LIMIT = 16;
++const CLAUSE_MIN_CHARS = 48;
++const HARD_LIMIT_CHARS = 140;
++const IDLE_MIN_CHARS = 24;
+ 
+ export class StreamingChunker {
+   private buffer = '';
+@@ -27,6 +21,8 @@ export class StreamingChunker {
+   private finalized = false;
+   private cancelled = false;
+   private maxChunkSize: number;
++  private lastAppendAt = 0;
++  private wakeTimer: ReturnType<typeof setTimeout> | null = null;
+ 
+   private waiter: ((chunk: TextChunk | null) => void) | null = null;
+ 
+@@ -35,10 +31,12 @@ export class StreamingChunker {
+   }
+ 
+   append(text: string): void {
+-    if (this.finalized || this.cancelled) {
++    if (this.finalized || this.cancelled || text.length === 0) {
+       return;
+     }
+     this.buffer += text;
++    this.lastAppendAt = Date.now();
++    this.scheduleTimedWake();
+     this.wake();
+   }
+ 
+@@ -47,57 +45,38 @@ export class StreamingChunker {
+       return;
+     }
+     this.finalized = true;
++    this.clearWakeTimer();
+     this.wake();
+   }
+ 
+   cancel(): void {
+     this.cancelled = true;
+     this.buffer = '';
++    this.clearWakeTimer();
+     if (this.waiter) {
+       this.waiter(null);
+       this.waiter = null;
+     }
+   }
+ 
+-  /**
+-   * Returns the next chunk of complete sentence(s) up to
+-   * `maxChunkSize`. Blocks (via promise) until a sentence boundary
+-   * appears in the buffer, more text arrives, or finalize/cancel is
+-   * called.
+-   *
+-   * Returns `null` when the stream is fully consumed (finalized + buffer
+-   * drained) or cancelled.
+-   */
++  /** Return the next speakable chunk, waiting until one is ready. */
+   async getNextChunk(): Promise<TextChunk | null> {
+-    // Try synchronously first — avoids a microtask tick when data is ready.
+     const immediate = this.tryTake();
+     if (immediate !== undefined) {
+       return immediate;
+     }
+ 
+-    // Block until append/finalize/cancel wakes us.
+     return new Promise<TextChunk | null>(resolve => {
+       this.waiter = resolve;
+     });
+   }
+ 
+   /**
+-   * Non-blocking peek: returns the next chunk if one is ready right
+-   * now, or `undefined` (not `null`) if the consumer should wait.
+-   * `null` means stream is done.
++   * Non-blocking peek. `undefined` means more input is needed; `null` means
++   * the stream is done. Calling this consumes a ready chunk.
+    */
+   tryPeek(): TextChunk | null | undefined {
+-    if (this.cancelled) {
+-      return null;
+-    }
+-    const chunk = this.extractReadyChunk();
+-    if (chunk) {
+-      return chunk;
+-    }
+-    if (this.finalized) {
+-      return this.extractRemainder();
+-    }
+-    return undefined;
++    return this.tryTake();
+   }
+ 
+   /** Total chars appended so far. */
+@@ -105,12 +84,6 @@ export class StreamingChunker {
+     return this.absoluteOffset + this.buffer.length;
+   }
+ 
+-  // ── Private ──────────────────────────────────────────────────────
+-
+-  /**
+-   * Try to produce a result synchronously. Returns `undefined` when
+-   * the consumer should block.
+-   */
+   private tryTake(): TextChunk | null | undefined {
+     if (this.cancelled) {
+       return null;
+@@ -126,34 +99,128 @@ export class StreamingChunker {
+   }
+ 
+   /**
+-   * Extract complete sentence(s) from the front of the buffer, up to
+-   * `maxChunkSize`. Returns null if no sentence boundary is found.
++   * Pick the earliest useful boundary in priority order:
++   * strong punctuation, a sufficiently long comma clause, word count,
++   * hard character limit, then an inactivity flush.
+    */
+   private extractReadyChunk(): TextChunk | null {
+-    const re = new RegExp(SENTENCE_END_RE.source, 'g');
+-    let m: RegExpExecArray | null;
+-    let lastGoodEnd = -1;
+-
+-    while ((m = re.exec(this.buffer)) !== null) {
+-      const candidateEnd = m.index + m[0].length;
+-      if (candidateEnd <= this.maxChunkSize || lastGoodEnd === -1) {
+-        lastGoodEnd = candidateEnd;
++    if (this.buffer.trim().length === 0) {
++      return null;
++    }
++
++    const age = this.lastAppendAt === 0 ? 0 : Date.now() - this.lastAppendAt;
++    let end = this.findStrongBoundary(age);
++
++    if (end === -1) {
++      end = this.findClauseBoundary();
++    }
++    if (end === -1) {
++      end = this.findWordBoundary(SOFT_WORD_LIMIT);
++    }
++    if (end === -1) {
++      end = this.findHardBoundary();
++    }
++    if (
++      end === -1 &&
++      age >= IDLE_FLUSH_MS &&
++      this.buffer.trim().length >= IDLE_MIN_CHARS
++    ) {
++      end = this.buffer.length;
++    }
++
++    return end > 0 ? this.take(end) : null;
++  }
++
++  private findStrongBoundary(age: number): number {
++    // Newlines and clause punctuation are useful speaking boundaries. ASCII
++    // sentence punctuation at the current buffer end gets a short grace
++    // period, allowing quotes/markdown or whitespace from the next token to
++    // arrive without delaying it until generation completes.
++    const re = /[.!?]+|[。！？]+|[\n;:]+/g;
++    let match: RegExpExecArray | null;
++    while ((match = re.exec(this.buffer)) !== null) {
++      let end = match.index + match[0].length;
++      const token = match[0];
++      const isAsciiSentence = /^[.!?]/.test(token);
++
++      // Include closing quotes/brackets in the spoken chunk. They commonly
++      // arrive in the same token as the period, so the period is not
++      // technically the final character even though the sentence is done.
++      while (end < this.buffer.length && /["'”’\])}]/.test(this.buffer[end])) {
++        end++;
++      }
++      const followedByWhitespace = /\s/.test(this.buffer.charAt(end));
++
++      if (
++        isAsciiSentence &&
++        !followedByWhitespace &&
++        end === this.buffer.length &&
++        age < PUNCTUATION_GRACE_MS
++      ) {
++        continue;
+       }
+-      if (candidateEnd >= this.maxChunkSize && lastGoodEnd > 0) {
+-        break;
++      if (isAsciiSentence && !followedByWhitespace && end < this.buffer.length) {
++        continue;
+       }
++
++      while (end < this.buffer.length && /\s/.test(this.buffer.charAt(end))) {
++        end++;
++      }
++      if (end > Math.min(HARD_LIMIT_CHARS, this.maxChunkSize)) {
++        return -1;
++      }
++      return end;
+     }
++    return -1;
++  }
+ 
+-    if (lastGoodEnd === -1) {
+-      return null;
++  private findClauseBoundary(): number {
++    const re = /[,，]\s*/g;
++    let match: RegExpExecArray | null;
++    while ((match = re.exec(this.buffer)) !== null) {
++      const end = match.index + match[0].length;
++      if (end >= CLAUSE_MIN_CHARS) {
++        return end;
++      }
+     }
++    return -1;
++  }
+ 
+-    const end = lastGoodEnd;
++  private findWordBoundary(wordLimit: number): number {
++    const re = /\S+\s+/g;
++    let words = 0;
++    let match: RegExpExecArray | null;
++    while ((match = re.exec(this.buffer)) !== null) {
++      words++;
++      if (words >= wordLimit) {
++        return match.index + match[0].length;
++      }
++    }
++    return -1;
++  }
++
++  private findHardBoundary(): number {
++    const limit = Math.min(HARD_LIMIT_CHARS, this.maxChunkSize);
++    if (this.buffer.length < limit) {
++      return -1;
++    }
++
++    // Prefer the final whitespace before the limit. If a long unbroken token
++    // has none, cut at the limit so malformed/model-generated text cannot
++    // grow the synthesis buffer without bound.
++    for (let i = limit; i > 0; i--) {
++      if (/\s/.test(this.buffer.charAt(i - 1))) {
++        return i;
++      }
++    }
++    return limit;
++  }
++
++  private take(end: number): TextChunk | null {
+     const text = this.buffer.slice(0, end);
+     if (text.trim().length === 0) {
+       return null;
+     }
+-
+     const chunk: TextChunk = {
+       text,
+       startIndex: this.absoluteOffset,
+@@ -161,39 +228,53 @@ export class StreamingChunker {
+     };
+     this.buffer = this.buffer.slice(end);
+     this.absoluteOffset += end;
++    this.scheduleTimedWake();
+     return chunk;
+   }
+ 
+-  /**
+-   * Drain whatever remains. Returns null if buffer is empty.
+-   */
+   private extractRemainder(): TextChunk | null {
+     if (this.buffer.length === 0 || this.buffer.trim().length === 0) {
+       this.buffer = '';
+       return null;
+     }
+-    const chunk: TextChunk = {
+-      text: this.buffer,
+-      startIndex: this.absoluteOffset,
+-      endIndex: this.absoluteOffset + this.buffer.length,
+-    };
+-    this.absoluteOffset += this.buffer.length;
+-    this.buffer = '';
+-    return chunk;
++    return this.take(this.buffer.length);
++  }
++
++  private scheduleTimedWake(): void {
++    this.clearWakeTimer();
++    if (this.finalized || this.cancelled || this.buffer.length === 0) {
++      return;
++    }
++
++    const endsInSentencePunctuation = /[.!?]["'”’\])}]*$/.test(
++      this.buffer,
++    );
++    const delay = endsInSentencePunctuation
++      ? PUNCTUATION_GRACE_MS
++      : IDLE_FLUSH_MS;
++    const elapsed = this.lastAppendAt === 0 ? 0 : Date.now() - this.lastAppendAt;
++    this.wakeTimer = setTimeout(() => {
++      this.wakeTimer = null;
++      this.wake();
++    }, Math.max(0, delay - elapsed));
++  }
++
++  private clearWakeTimer(): void {
++    if (this.wakeTimer) {
++      clearTimeout(this.wakeTimer);
++      this.wakeTimer = null;
++    }
+   }
+ 
+-  /**
+-   * Wake the blocked consumer if one is waiting.
+-   */
+   private wake(): void {
+     if (!this.waiter) {
+       return;
+     }
+     const result = this.tryTake();
+     if (result !== undefined) {
+-      const w = this.waiter;
++      const waiter = this.waiter;
+       this.waiter = null;
+-      w(result);
++      waiter(result);
+     }
+   }
+ }

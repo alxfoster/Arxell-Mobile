@@ -44,6 +44,7 @@ export const StopButton = ({
       onPress={handlePress}
       style={styles.stopButton}>
       <StopIcon
+        color={color ?? theme.colors.background}
         stroke={color ?? theme.colors.background}
         width={24}
         height={24}

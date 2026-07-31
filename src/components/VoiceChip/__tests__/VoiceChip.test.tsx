@@ -9,10 +9,10 @@ import {ttsStore} from '../../../store';
 
 import {VoiceChip} from '../VoiceChip';
 
-const renderChip = () =>
+const renderChip = (color?: string) =>
   render(
     <L10nContext.Provider value={l10n.en}>
-      <VoiceChip />
+      <VoiceChip color={color} />
     </L10nContext.Provider>,
   );
 
@@ -47,6 +47,14 @@ describe('VoiceChip', () => {
     const {getByTestId} = renderChip();
     expect(getByTestId('voicechip-speaker')).toBeTruthy();
     expect(getByTestId('voicechip-secondary')).toBeTruthy();
+  });
+
+  it('uses the supplied chat-control tint for the speaker icon', () => {
+    const {UNSAFE_getAllByType} = renderChip('#f5f5f5');
+    const icons = UNSAFE_getAllByType('SvgMock' as any);
+
+    expect(icons[0].props.color).toBe('#f5f5f5');
+    expect(icons[0].props.stroke).toBe('#f5f5f5');
   });
 
   it('pre-setup: speaker tap opens setup sheet (no voice to toggle)', () => {

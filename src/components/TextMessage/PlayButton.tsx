@@ -97,6 +97,7 @@ export const PlayButton: React.FC<PlayButtonProps> = observer(({message}) => {
         <StopIcon
           width={iconSize}
           height={iconSize}
+          color={theme.colors.textSecondary}
           stroke={theme.colors.textSecondary}
         />
       ) : (

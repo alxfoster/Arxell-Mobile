@@ -11,6 +11,7 @@ import {FABGroup} from '../FABGroup';
 describe('FABGroup', () => {
   const mockOnAddHFModel = jest.fn();
   const mockOnAddLocalModel = jest.fn();
+  const mockOnImportModelFolder = jest.fn();
   const mockOnAddRemoteModel = jest.fn();
 
   beforeEach(() => {
@@ -48,6 +49,22 @@ describe('FABGroup', () => {
     ).toBeTruthy();
     expect(
       getByTestId('remote-fab', {includeHiddenElements: true}),
+    ).toBeTruthy();
+  });
+
+  it('renders the optional models-folder import action', () => {
+    const {getByTestId} = render(
+      <FABGroup
+        onAddHFModel={mockOnAddHFModel}
+        onAddLocalModel={mockOnAddLocalModel}
+        onImportModelFolder={mockOnImportModelFolder}
+        onAddRemoteModel={mockOnAddRemoteModel}
+      />,
+      {withNavigation: true},
+    );
+
+    expect(
+      getByTestId('model-folder-fab', {includeHiddenElements: true}),
     ).toBeTruthy();
   });
 

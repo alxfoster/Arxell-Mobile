@@ -30,6 +30,15 @@ jest.mock('../../ChatEmptyPlaceholder', () => ({
 }));
 
 describe('chat', () => {
+  it('renders the right-side chat action rail', () => {
+    const {getByTestId} = render(
+      <ChatView messages={[]} onSendPress={jest.fn()} user={user} />,
+      {withNavigation: true, withBottomSheetProvider: true},
+    );
+
+    expect(getByTestId('chat-action-rail')).toBeTruthy();
+  });
+
   it('renders image preview', async () => {
     const messages = [
       textMessage,

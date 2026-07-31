@@ -1,6 +1,7 @@
 import {Platform} from 'react-native';
 
 import {audioCapture, requestMicPermission} from './audio/AudioCapture';
+import {AudioPreRoll} from './audio/AudioPreRoll';
 import {SileroVAD} from './vad/SileroVAD';
 import {MoonshineEngine} from './engines/MoonshineEngine';
 import {WhisperEngine} from './engines/WhisperEngine';
@@ -107,6 +108,10 @@ const VAD_SPEECH_THRESHOLD = 0.35;
 const RMS_SPEECH_THRESHOLD = 0.01;
 const PARTIAL_INTERVAL_MS = 750;
 const MIN_PARTIAL_SAMPLES = 8000; // 500 ms @ 16 kHz
+// Silero intentionally waits for confidence before declaring speech. Preserve
+// audio immediately before that decision so low-energy initial phonemes are
+// still included in the Moonshine utterance.
+const PRE_ROLL_SAMPLES = 5120; // 320 ms @ 16 kHz (10 Silero windows)
 
 async function startSileroSession(
   engine: ASREngine,
@@ -122,6 +127,7 @@ async function startSileroSession(
   let lastPartialAt = 0;
   let partialInFlight = false;
   const utterance: number[] = [];
+  const preRoll = new AudioPreRoll(PRE_ROLL_SAMPLES);
   const pending: Float32Array[] = [];
   let pumping = false;
 
@@ -178,9 +184,17 @@ async function startSileroSession(
     if (hasSpeech) {
       lastSpeechAt = now;
     }
-    if (!speaking && hasSpeech) {
+    if (!speaking) {
+      if (!hasSpeech) {
+        preRoll.append(float);
+        return;
+      }
+
       speaking = true;
       utterance.length = 0;
+      // Include the rolling audio captured before VAD triggered. This avoids
+      // clipping quiet word onsets such as /h/, /f/, and /s/.
+      preRoll.drainInto(utterance);
       lastPartialAt = now;
       callbacks.onPartialText('');
     }

@@ -1,0 +1,96 @@
+diff --git a/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/IntentFactory.kt b/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/IntentFactory.kt
+index 62590ab..aa7d6fe 100644
+--- a/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/IntentFactory.kt
++++ b/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/IntentFactory.kt
+@@ -1,6 +1,7 @@
+ package com.reactnativedocumentpicker
+ 
+ import android.content.Intent
++import android.net.Uri
+ import android.os.Build
+ import android.provider.DocumentsContract
+ 
+@@ -22,9 +23,11 @@ object IntentFactory {
+       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+         options.initialDirectoryUrl != null
+       ) {
+-        // only works for ACTION_OPEN_DOCUMENT
+-        // TODO must be URI
+-        putExtra(DocumentsContract.EXTRA_INITIAL_URI, options.initialDirectoryUrl)
++        // EXTRA_INITIAL_URI requires a Parcelable Uri, not a String.
++        putExtra(
++          DocumentsContract.EXTRA_INITIAL_URI,
++          Uri.parse(options.initialDirectoryUrl),
++        )
+       }
+       if (!options.allowVirtualFiles) {
+         addCategory(Intent.CATEGORY_OPENABLE)
+diff --git a/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.kt b/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.kt
+index 346901c..e98b79d 100644
+--- a/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.kt
++++ b/node_modules/@react-native-documents/picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.kt
+@@ -154,9 +154,8 @@ class RNDocumentPickerModule(reactContext: ReactApplicationContext) :
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                 options.initialDirectoryUrl != null) {
+               putExtra(
+-                  // TODO must be URI
+                   DocumentsContract.EXTRA_INITIAL_URI,
+-                  options.initialDirectoryUrl)
++                  Uri.parse(options.initialDirectoryUrl))
+             }
+           }
+       // TODO option for extra task on stack?
+diff --git a/node_modules/@react-native-documents/picker/lib/typescript/pick.d.ts b/node_modules/@react-native-documents/picker/lib/typescript/pick.d.ts
+index e9365e2..780052b 100644
+--- a/node_modules/@react-native-documents/picker/lib/typescript/pick.d.ts
++++ b/node_modules/@react-native-documents/picker/lib/typescript/pick.d.ts
+@@ -14,6 +14,8 @@ export type DocumentPickerOptionsBase = {
+      * Specify file type(s) that you want to pick. Use `types` for some predefined values.
+      * */
+     type?: string | PredefinedFileTypes | Array<PredefinedFileTypes | string>;
++    /** Android-only URI of the directory where the picker should open. */
++    initialDirectoryUrl?: string;
+     /**
+      * Whether to allow multiple files to be picked. False by default.
+      * */
+diff --git a/node_modules/@react-native-documents/picker/lib/typescript/pickDirectory.d.ts b/node_modules/@react-native-documents/picker/lib/typescript/pickDirectory.d.ts
+index e7ef26f..5fb9275 100644
+--- a/node_modules/@react-native-documents/picker/lib/typescript/pickDirectory.d.ts
++++ b/node_modules/@react-native-documents/picker/lib/typescript/pickDirectory.d.ts
+@@ -7,6 +7,8 @@ import { BookmarkingResponse, PresentationStyle, type TransitionStyle } from './
+  * @group pickDirectory() types
+  */
+ export type DirectoryPickerOptionsBase = {
++    /** Android-only URI of the directory where the picker should open. */
++    initialDirectoryUrl?: string;
+     /**
+      * iOS only - Controls how the picker is presented, e.g. on an iPad you may want to present it fullscreen. Defaults to `pageSheet`.
+      * */
+diff --git a/node_modules/@react-native-documents/picker/src/pick.ts b/node_modules/@react-native-documents/picker/src/pick.ts
+index 8c4c6ed..00be597 100644
+--- a/node_modules/@react-native-documents/picker/src/pick.ts
++++ b/node_modules/@react-native-documents/picker/src/pick.ts
+@@ -26,8 +26,9 @@ export type DocumentPickerOptionsBase = {
+    * */
+   type?: string | PredefinedFileTypes | Array<PredefinedFileTypes | string>
+ 
++  /** Android-only URI of the directory where the picker should open. */
++  initialDirectoryUrl?: string
+   // TODO: implement these
+-  // initialDirectoryUrl?: string
+   // showFileExtensions?: boolean
+   // localOnly?: boolean
+   /**
+diff --git a/node_modules/@react-native-documents/picker/src/pickDirectory.ts b/node_modules/@react-native-documents/picker/src/pickDirectory.ts
+index 9364c33..c29b19a 100644
+--- a/node_modules/@react-native-documents/picker/src/pickDirectory.ts
++++ b/node_modules/@react-native-documents/picker/src/pickDirectory.ts
+@@ -10,6 +10,8 @@ import { NativeDocumentPicker } from './spec/NativeDocumentPicker'
+  * @group pickDirectory() types
+  */
+ export type DirectoryPickerOptionsBase = {
++  /** Android-only URI of the directory where the picker should open. */
++  initialDirectoryUrl?: string
+   /**
+    * iOS only - Controls how the picker is presented, e.g. on an iPad you may want to present it fullscreen. Defaults to `pageSheet`.
+    * */

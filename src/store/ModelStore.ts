@@ -33,7 +33,10 @@ import {
   inferRepoFromModelId,
   parseSizeLabel,
 } from '../utils';
-import {getRecommendedProjectionModel} from '../utils/multimodalHelpers';
+import {
+  getRecommendedProjectionModel,
+  isProjectionModel,
+} from '../utils/multimodalHelpers';
 import {getOriginalModelName} from '../utils/formatters';
 import type {OnboardingPalModelEntry} from './onboarding/onboardingPals';
 
@@ -2419,6 +2422,7 @@ class ModelStore {
       fullPath: localFilePath,
       isLocal: true, // Kept for backward compatibility
       origin: ModelOrigin.LOCAL,
+      modelType: isProjectionModel(filename) ? ModelType.PROJECTION : undefined,
       defaultChatTemplate: {...defaultSettings.chatTemplate},
       chatTemplate: {...defaultSettings.chatTemplate},
       defaultStopWords: [...(defaultSettings?.completionParams?.stop || [])],

@@ -1,6 +1,9 @@
 import {StyleSheet} from 'react-native';
 import {Theme} from '../../utils/types';
 
+/** 56px action button plus 4px breathing room on each side. */
+export const CHAT_ACTION_RAIL_WIDTH = 64;
+
 export const createStyles = ({theme}: {theme: Theme}) =>
   StyleSheet.create({
     container: {
@@ -49,14 +52,26 @@ export const createStyles = ({theme}: {theme: Theme}) =>
     suggestedPromptsOverlay: {
       position: 'absolute',
       left: 0,
-      right: 0,
+      right: CHAT_ACTION_RAIL_WIDTH,
       zIndex: 9,
       backgroundColor: 'transparent',
     },
-    sttMicButtonOverlay: {
+    chatBody: {
+      flex: 1,
+      position: 'relative',
+      marginRight: CHAT_ACTION_RAIL_WIDTH,
+    },
+    actionRail: {
       position: 'absolute',
-      right: 16,
-      zIndex: 9,
+      top: 0,
+      right: 0,
+      width: CHAT_ACTION_RAIL_WIDTH,
+      alignItems: 'center',
+      justifyContent: 'center',
+      // Use a distinct surface so the reserved column reads as a rail rather
+      // than empty chat padding in both light and dark themes.
+      backgroundColor: theme.colors.surfaceVariant,
+      zIndex: 8,
     },
     inputContainer: {
       borderTopLeftRadius: theme.borders.inputBorderRadius,

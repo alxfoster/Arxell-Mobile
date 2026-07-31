@@ -444,6 +444,16 @@ export const ChatView = observer(
       transform: [{translateY: -keyboardOcclusion.value}],
     }));
 
+    // Keep the action rail confined to the message viewport: below the chat
+    // header and above the input bar, including while the keyboard moves the
+    // input upward.
+    const actionRailAnimatedStyle = useAnimatedStyle(
+      () => ({
+        bottom: chatInputHeight.height + keyboardOcclusion.value,
+      }),
+      [chatInputHeight.height],
+    );
+
     // ============ SCROLL TRACKING & SCROLL-TO-BOTTOM ============
     // Shared values for tracking scroll position and content overflow
     const underflow = useSharedValue(true);
@@ -1166,8 +1176,21 @@ export const ChatView = observer(
 
           {/* Main chat container */}
           <Reanimated.View style={styles.chatContainer}>
-            {customContent}
-            {renderChatList()}
+            {/* Reserve a slim right rail so messages never render underneath
+                present or future common chat actions. */}
+            <View style={styles.chatBody}>
+              {customContent}
+              {renderChatList()}
+            </View>
+
+            {/* Common chat-action rail. The microphone occupies the midpoint;
+                more actions can be added above and below it later. */}
+            <Reanimated.View
+              pointerEvents="box-none"
+              testID="chat-action-rail"
+              style={[styles.actionRail, actionRailAnimatedStyle]}>
+              {sttStore.isSTTEnabled ? <STTMicButton /> : null}
+            </Reanimated.View>
 
             {/* Chat input */}
             <Reanimated.View
@@ -1234,23 +1257,6 @@ export const ChatView = observer(
                     wrappedOnSendPress({type: 'text', text: prompt})
                   }
                 />
-              </Reanimated.View>
-            ) : null}
-
-            {/* STT mic button — floats above the input bar, right-aligned,
-                and tracks the keyboard like the suggested-prompts overlay.
-                Hidden when STT is disabled. */}
-            {sttStore.isSTTEnabled ? (
-              <Reanimated.View
-                pointerEvents="box-none"
-                style={[
-                  styles.sttMicButtonOverlay,
-                  suggestedPromptsAnimatedStyle,
-                  {
-                    bottom: chatInputHeight.height + 8,
-                  },
-                ]}>
-                <STTMicButton />
               </Reanimated.View>
             ) : null}
 

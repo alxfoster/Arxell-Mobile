@@ -31,7 +31,12 @@ const pickSpeakerIcon = (autoSpeakEnabled: boolean, isPlaying: boolean) => {
  * split-pill — speaker + divider + chevron — when active, playing, or when
  * setup is still needed. Hidden entirely when TTS is unavailable.
  */
-export const VoiceChip: React.FC = observer(() => {
+export interface VoiceChipProps {
+  /** Tint shared with the chat input's send button. */
+  color?: string;
+}
+
+export const VoiceChip: React.FC<VoiceChipProps> = observer(({color}) => {
   const theme = useTheme();
   const l10n = useContext(L10nContext);
   const styles = createStyles(theme);
@@ -81,7 +86,7 @@ export const VoiceChip: React.FC = observer(() => {
   const CurrentSpeakerIcon = pickSpeakerIcon(autoSpeakEnabled, isPlaying);
   const speakerIconColor = isPlaying
     ? theme.colors.primary
-    : theme.colors.onSurfaceVariant;
+    : (color ?? theme.colors.onSurfaceVariant);
 
   const containerAnimStyle = {
     backgroundColor: progress.interpolate({
@@ -125,6 +130,9 @@ export const VoiceChip: React.FC = observer(() => {
           <CurrentSpeakerIcon
             width={18}
             height={18}
+            // Some SVGs use currentColor while others inherit stroke. Supply
+            // both so the icon cannot fall back to black in dark mode.
+            color={speakerIconColor}
             stroke={speakerIconColor}
           />
         </Animated.View>

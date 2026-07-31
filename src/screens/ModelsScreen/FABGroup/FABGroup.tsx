@@ -11,6 +11,7 @@ import {createStyles} from './styles';
 interface FABGroupProps {
   onAddHFModel: () => void;
   onAddLocalModel: () => void;
+  onImportModelFolder?: () => void;
   onAddRemoteModel: () => void;
   onManageServers?: () => void;
   hasServers?: boolean;
@@ -36,6 +37,7 @@ const RemoteIcon = (props: IconComponentProps): React.ReactNode => (
 export const FABGroup: React.FC<FABGroupProps> = ({
   onAddHFModel,
   onAddLocalModel,
+  onImportModelFolder,
   onAddRemoteModel,
   onManageServers,
   hasServers,
@@ -62,6 +64,7 @@ export const FABGroup: React.FC<FABGroupProps> = ({
       {
         testID: 'local-fab',
         icon: 'folder-plus',
+        color: theme.colors.primary,
         label: l10n.models.buttons.addLocalModel,
         accessibilityLabel: l10n.models.buttons.addLocalModel,
         style: styles.actionButton,
@@ -69,9 +72,23 @@ export const FABGroup: React.FC<FABGroupProps> = ({
           onAddLocalModel();
         },
       },
+      ...(onImportModelFolder
+        ? [
+            {
+              testID: 'model-folder-fab',
+              icon: 'folder-multiple-plus',
+              color: theme.colors.primary,
+              label: 'Import Models Folder',
+              accessibilityLabel: 'Import Models Folder',
+              style: styles.actionButton,
+              onPress: onImportModelFolder,
+            },
+          ]
+        : []),
       {
         testID: 'remote-fab',
         icon: RemoteIcon,
+        color: theme.colors.primary,
         label: l10n.settings.addRemoteModel,
         accessibilityLabel: l10n.settings.addRemoteModel,
         style: styles.actionButton,
@@ -84,6 +101,7 @@ export const FABGroup: React.FC<FABGroupProps> = ({
       items.push({
         testID: 'manage-servers-fab',
         icon: 'server-network',
+        color: theme.colors.primary,
         label: l10n.settings.manageServers,
         accessibilityLabel: l10n.settings.manageServers,
         style: styles.actionButton,
@@ -97,10 +115,12 @@ export const FABGroup: React.FC<FABGroupProps> = ({
     l10n,
     onAddHFModel,
     onAddLocalModel,
+    onImportModelFolder,
     onAddRemoteModel,
     onManageServers,
     hasServers,
     styles.actionButton,
+    theme.colors.primary,
   ]);
 
   return (
@@ -119,6 +139,7 @@ export const FABGroup: React.FC<FABGroupProps> = ({
         }
       }}
       fabStyle={styles.fab}
+      color={theme.colors.primary}
       backdropColor={theme.colors.surface}
       accessibilityLabel={open ? 'Close menu' : 'Open menu'}
     />

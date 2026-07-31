@@ -641,7 +641,7 @@ export const ChatInput = observer(
               {/* Voice chip (TTS) — always present so users can stop
                   audio independently of text generation. Self-gates:
                   returns null when TTS is unavailable. */}
-              <VoiceChip />
+              <VoiceChip color={onSurfaceColor} />
 
               {/* Send/Stop Button */}
               {isStopVisible ? (

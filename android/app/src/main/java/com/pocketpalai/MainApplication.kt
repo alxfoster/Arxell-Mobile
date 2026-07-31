@@ -17,6 +17,7 @@ import com.pocketpal.HardwareInfoPackage
 import com.pocketpal.StorefrontPackage
 import com.pocketpal.AuthSessionPackage
 import com.pocketpal.ExternalContentLinkPackage
+import com.pocketpal.ModelFolderImportPackage
 import com.pocketpal.EspeakNgPackage
 import com.pocketpal.download.DownloadPackage
 
@@ -33,6 +34,7 @@ class MainApplication : Application(), ReactApplication {
               add(StorefrontPackage())
               add(AuthSessionPackage())
               add(ExternalContentLinkPackage())
+              add(ModelFolderImportPackage())
               add(EspeakNgPackage())
               add(DownloadPackage())
             }
