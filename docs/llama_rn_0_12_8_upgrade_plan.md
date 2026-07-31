@@ -1,6 +1,24 @@
 # llama.rn 0.12.8 Upgrade Plan
 
-Status: review complete; upgrade not yet implemented.
+Status: dependency upgrade implemented; physical-device and iOS validation remain.
+
+## Implementation progress
+
+Completed:
+
+- pinned `llama.rn` 0.12.8 in `package.json` and regenerated `yarn.lock`;
+- installed and verified the 0.12.8 Android/iOS prebuilt artifact checksum markers;
+- updated `ios/Podfile.lock` to record `llama-rn (0.12.8)` (CocoaPods is not available in the current Linux environment, so macOS must still regenerate/verify it);
+- confirmed the installed source reports llama.cpp b10156 / `91f8c9c`;
+- passed TypeScript and localization validation;
+- built Android `prodDebug` and `prodRelease` successfully;
+- inspected the packaged arm64 release library and confirmed it contains llama.cpp commit `91f8c9c`.
+
+Outstanding validation:
+
+- macOS CocoaPods install and clean iOS simulator/device builds;
+- physical-device CPU, Metal, OpenCL, Hexagon, multimodal, tool-calling, memory, and performance testing;
+- full-project lint/test cleanup. The upgrade introduced no TypeScript API changes, and 266 of 270 test suites passed, but the existing tree has unrelated lint failures and 4 failing suites involving Settings expectations, design-token invariants, and stale color snapshots.
 
 ## Executive summary
 
@@ -217,13 +235,13 @@ Model files and persisted PocketPal settings should not require migration or rol
 ## Acceptance checklist
 
 - [ ] Baseline captured on 0.12.7.
-- [ ] `package.json` and `yarn.lock` resolve exactly 0.12.8.
-- [ ] Native artifact checksums match the 0.12.8 manifest.
-- [ ] `ios/Podfile.lock` records llama-rn 0.12.8.
-- [ ] Typecheck, lint, localization validation, and unit tests pass.
-- [ ] Clean Android release build passes.
+- [x] `package.json` and `yarn.lock` resolve exactly 0.12.8.
+- [x] Native artifact checksums match the 0.12.8 manifest.
+- [x] `ios/Podfile.lock` records llama-rn 0.12.8 (macOS `pod install` verification remains).
+- [ ] Typecheck, lint, localization validation, and unit tests pass (typecheck/localization pass; pre-existing lint and four-suite failures remain).
+- [x] Clean Android release build passes.
 - [ ] Clean iOS simulator and device builds pass.
-- [ ] Runtime reports llama.cpp b10156 / `91f8c9c`.
+- [x] Packaged Android runtime reports llama.cpp b10156 / `91f8c9c`.
 - [ ] CPU, Metal, OpenCL, and Hexagon tests pass where hardware is available.
 - [ ] Tool calling, reasoning, grammar, and multimodal regressions pass.
 - [ ] mmap/mlock combinations behave as expected.

@@ -6565,10 +6565,10 @@ llama-tokenizer-js@^1.2.2:
   resolved "https://registry.yarnpkg.com/llama-tokenizer-js/-/llama-tokenizer-js-1.2.2.tgz#4db5d5f0120e772fb46162ddc7b119f8d2044f4e"
   integrity sha512-Wmth393dc3odWU3IzARJ3r2oIfWgw9GdJ5Gm+hGhfECNO18UHLRqEFSf511jn4E9KcQGzuuKw4Wl08pHAemLAw==
 
-llama.rn@0.12.7:
-  version "0.12.7"
-  resolved "https://registry.yarnpkg.com/llama.rn/-/llama.rn-0.12.7.tgz#20f90bebb3c4f1d26594948a088fec3e32efd416"
-  integrity sha512-n18BLz9g2OuxIyZ9p2Y4ml8C1e0c8xrvNGPL3DIK9pKDp56sZtDSWLOzDMUWfsyVYSVRnbCMmQvGkIX/8YV6Og==
+llama.rn@0.12.8:
+  version "0.12.8"
+  resolved "https://registry.yarnpkg.com/llama.rn/-/llama.rn-0.12.8.tgz#b4f8622d20e47bdf4542b6ca761216328771a390"
+  integrity sha512-m70240EdSzq7fhjQ7ocmbuGvurXBiusPLdtJrFwpd3piLSOgKdspBtAMH752Fw3DU7t3k4OpySful7UsgJokYA==
 
 locate-path@^5.0.0:
   version "5.0.0"
