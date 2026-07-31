@@ -1,0 +1,35 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 35
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.3.13750724"
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+
+        // Add the Google Services plugin dependency
+        // This is used exclusively for sending benchmarks (with user consent) to Hugging Face Spaces via Firebase.
+        // Firebase is used for App Check functionality, allowing unauthenticated users to submit their benchmark data securely.
+        classpath 'com.google.gms:google-services:4.4.4'
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+// Moonshine 0.0.59 links against ONNX Runtime 1.23.  Pin every Android
+// configuration, including onnxruntime-react-native's private `extractLibs`
+// configuration, so its native library uses the same ABI.
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.force 'com.microsoft.onnxruntime:onnxruntime-android:1.23.0'
+    }
+}

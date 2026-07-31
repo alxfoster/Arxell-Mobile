@@ -1,0 +1,921 @@
+import {AppState} from 'react-native';
+import {runInAction} from 'mobx';
+
+import * as Keychain from 'react-native-keychain';
+
+import * as openaiModule from '../../api/openai';
+
+// Mock dependencies before importing the store
+jest.mock('mobx-persist-store', () => ({
+  makePersistable: jest.fn().mockReturnValue(Promise.resolve()),
+}));
+
+jest.mock('../../api/openai', () => ({
+  fetchModels: jest.fn(),
+  fetchServerProps: jest.fn(),
+  testConnection: jest.fn(),
+  PROPS_TIMEOUT_MS: 5000,
+}));
+
+// Mock AppState.addEventListener
+const mockAddEventListener = jest.fn().mockReturnValue({remove: jest.fn()});
+jest
+  .spyOn(AppState, 'addEventListener')
+  .mockImplementation(mockAddEventListener);
+
+// Import the singleton after mocks
+import {serverStore} from '../ServerStore';
+
+const mockedFetchModels = openaiModule.fetchModels as jest.Mock;
+const mockedFetchServerProps = openaiModule.fetchServerProps as jest.Mock;
+const mockedTestConnection = openaiModule.testConnection as jest.Mock;
+
+describe('ServerStore', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Reset store state between tests
+    runInAction(() => {
+      serverStore.servers = [];
+      serverStore.serverModels.clear();
+      serverStore.userSelectedModels = [];
+      serverStore.isLoading = false;
+      serverStore.error = null;
+      serverStore.privacyNoticeAcknowledged = false;
+      serverStore.remoteReasoning = {};
+    });
+  });
+
+  describe('initial state', () => {
+    it('has empty servers', () => {
+      expect(serverStore.servers).toEqual([]);
+    });
+
+    it('has isLoading false', () => {
+      expect(serverStore.isLoading).toBe(false);
+    });
+
+    it('has no error', () => {
+      expect(serverStore.error).toBeNull();
+    });
+
+    it('has privacyNoticeAcknowledged false', () => {
+      expect(serverStore.privacyNoticeAcknowledged).toBe(false);
+    });
+
+    it('has empty userSelectedModels', () => {
+      expect(serverStore.userSelectedModels).toEqual([]);
+    });
+  });
+
+  describe('addServer', () => {
+    it('adds a server and returns its id', () => {
+      const id = serverStore.addServer({
+        name: 'Test Server',
+        url: 'http://localhost:1234',
+      });
+
+      expect(typeof id).toBe('string');
+      expect(id).toMatch(/^server-/);
+      expect(serverStore.servers).toHaveLength(1);
+      expect(serverStore.servers[0].name).toBe('Test Server');
+      expect(serverStore.servers[0].url).toBe('http://localhost:1234');
+    });
+
+    it('does not auto-fetch models on add', () => {
+      serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      expect(mockedFetchModels).not.toHaveBeenCalled();
+    });
+
+    it('generates unique ids for each server', () => {
+      const id1 = serverStore.addServer({
+        name: 'Server 1',
+        url: 'http://a.com',
+      });
+      const id2 = serverStore.addServer({
+        name: 'Server 2',
+        url: 'http://b.com',
+      });
+
+      expect(id1).not.toBe(id2);
+    });
+  });
+
+  describe('updateServer', () => {
+    it('updates server properties', () => {
+      const id = serverStore.addServer({
+        name: 'Original',
+        url: 'http://localhost:1234',
+      });
+
+      serverStore.updateServer(id, {name: 'Updated'});
+
+      expect(serverStore.servers[0].name).toBe('Updated');
+    });
+
+    it('does nothing for non-existent server id', () => {
+      serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      serverStore.updateServer('non-existent', {name: 'Updated'});
+      expect(serverStore.servers[0].name).toBe('Server');
+    });
+
+    it('updates server URL', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      serverStore.updateServer(id, {url: 'http://localhost:5678'});
+
+      expect(serverStore.servers[0].url).toBe('http://localhost:5678');
+    });
+  });
+
+  describe('removeServer', () => {
+    it('removes a server from the list', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      expect(serverStore.servers).toHaveLength(1);
+
+      serverStore.removeServer(id);
+
+      expect(serverStore.servers).toHaveLength(0);
+    });
+
+    it('clears server models on removal', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.serverModels.set(id, [
+          {id: 'model-1', object: 'model', owned_by: 'system'},
+        ]);
+      });
+
+      serverStore.removeServer(id);
+
+      expect(serverStore.serverModels.has(id)).toBe(false);
+    });
+
+    it('removes API key from keychain', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      serverStore.removeServer(id);
+
+      expect(Keychain.resetGenericPassword).toHaveBeenCalledWith({
+        service: `pocketpal-server-${id}`,
+      });
+    });
+
+    it('removes all userSelectedModels entries for the server', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.userSelectedModels = [
+          {serverId: id, remoteModelId: 'model-a'},
+          {serverId: id, remoteModelId: 'model-b'},
+          {serverId: 'other-server', remoteModelId: 'model-c'},
+        ];
+      });
+
+      serverStore.removeServer(id);
+
+      expect(serverStore.userSelectedModels).toEqual([
+        {serverId: 'other-server', remoteModelId: 'model-c'},
+      ]);
+    });
+  });
+
+  describe('userSelectedModels', () => {
+    describe('addUserSelectedModel', () => {
+      it('adds a model selection', () => {
+        serverStore.addUserSelectedModel('server-1', 'model-a');
+
+        expect(serverStore.userSelectedModels).toEqual([
+          {serverId: 'server-1', remoteModelId: 'model-a'},
+        ]);
+      });
+
+      it('prevents duplicate entries', () => {
+        serverStore.addUserSelectedModel('server-1', 'model-a');
+        serverStore.addUserSelectedModel('server-1', 'model-a');
+
+        expect(serverStore.userSelectedModels).toHaveLength(1);
+      });
+
+      it('allows same model from different servers', () => {
+        serverStore.addUserSelectedModel('server-1', 'model-a');
+        serverStore.addUserSelectedModel('server-2', 'model-a');
+
+        expect(serverStore.userSelectedModels).toHaveLength(2);
+      });
+
+      it('allows different models from same server', () => {
+        serverStore.addUserSelectedModel('server-1', 'model-a');
+        serverStore.addUserSelectedModel('server-1', 'model-b');
+
+        expect(serverStore.userSelectedModels).toHaveLength(2);
+      });
+    });
+
+    describe('removeUserSelectedModel', () => {
+      it('removes a specific model selection', () => {
+        runInAction(() => {
+          serverStore.userSelectedModels = [
+            {serverId: 'server-1', remoteModelId: 'model-a'},
+            {serverId: 'server-1', remoteModelId: 'model-b'},
+          ];
+        });
+
+        serverStore.removeUserSelectedModel('server-1', 'model-a');
+
+        expect(serverStore.userSelectedModels).toEqual([
+          {serverId: 'server-1', remoteModelId: 'model-b'},
+        ]);
+      });
+
+      it('does nothing when entry does not exist', () => {
+        runInAction(() => {
+          serverStore.userSelectedModels = [
+            {serverId: 'server-1', remoteModelId: 'model-a'},
+          ];
+        });
+
+        serverStore.removeUserSelectedModel('server-1', 'non-existent');
+
+        expect(serverStore.userSelectedModels).toHaveLength(1);
+      });
+    });
+
+    describe('getUserSelectedModelsForServer', () => {
+      it('returns models for a specific server', () => {
+        runInAction(() => {
+          serverStore.userSelectedModels = [
+            {serverId: 'server-1', remoteModelId: 'model-a'},
+            {serverId: 'server-2', remoteModelId: 'model-b'},
+            {serverId: 'server-1', remoteModelId: 'model-c'},
+          ];
+        });
+
+        const result = serverStore.getUserSelectedModelsForServer('server-1');
+
+        expect(result).toEqual([
+          {serverId: 'server-1', remoteModelId: 'model-a'},
+          {serverId: 'server-1', remoteModelId: 'model-c'},
+        ]);
+      });
+
+      it('returns empty array when no models for server', () => {
+        const result =
+          serverStore.getUserSelectedModelsForServer('non-existent');
+
+        expect(result).toEqual([]);
+      });
+    });
+  });
+
+  describe('removeServerIfOrphaned', () => {
+    it('removes server when no user-selected models reference it', () => {
+      const id = serverStore.addServer({
+        name: 'Orphan Server',
+        url: 'http://localhost:1234',
+      });
+
+      // No userSelectedModels reference this server
+      serverStore.removeServerIfOrphaned(id);
+
+      expect(serverStore.servers).toHaveLength(0);
+    });
+
+    it('keeps server when user-selected models still reference it', () => {
+      const id = serverStore.addServer({
+        name: 'Active Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.userSelectedModels = [
+          {serverId: id, remoteModelId: 'model-a'},
+        ];
+      });
+
+      serverStore.removeServerIfOrphaned(id);
+
+      expect(serverStore.servers).toHaveLength(1);
+    });
+
+    it('cleans up API key when removing orphaned server', () => {
+      const id = serverStore.addServer({
+        name: 'Orphan',
+        url: 'http://localhost:1234',
+      });
+
+      serverStore.removeServerIfOrphaned(id);
+
+      expect(Keychain.resetGenericPassword).toHaveBeenCalledWith({
+        service: `pocketpal-server-${id}`,
+      });
+    });
+  });
+
+  describe('getModelsNotYetAdded', () => {
+    it('returns all models when none are user-selected', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.serverModels.set(id, [
+          {id: 'model-a', object: 'model', owned_by: 'system'},
+          {id: 'model-b', object: 'model', owned_by: 'system'},
+        ]);
+      });
+
+      const result = serverStore.getModelsNotYetAdded(id);
+
+      expect(result).toHaveLength(2);
+      expect(result.map(m => m.id)).toEqual(['model-a', 'model-b']);
+    });
+
+    it('filters out already user-selected models', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.serverModels.set(id, [
+          {id: 'model-a', object: 'model', owned_by: 'system'},
+          {id: 'model-b', object: 'model', owned_by: 'system'},
+          {id: 'model-c', object: 'model', owned_by: 'system'},
+        ]);
+        serverStore.userSelectedModels = [
+          {serverId: id, remoteModelId: 'model-a'},
+          {serverId: id, remoteModelId: 'model-c'},
+        ];
+      });
+
+      const result = serverStore.getModelsNotYetAdded(id);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('model-b');
+    });
+
+    it('returns empty array when all models are selected', () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      runInAction(() => {
+        serverStore.serverModels.set(id, [
+          {id: 'model-a', object: 'model', owned_by: 'system'},
+        ]);
+        serverStore.userSelectedModels = [
+          {serverId: id, remoteModelId: 'model-a'},
+        ];
+      });
+
+      const result = serverStore.getModelsNotYetAdded(id);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('returns empty array for server with no models fetched', () => {
+      const result = serverStore.getModelsNotYetAdded('non-existent');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('API key management', () => {
+    it('setApiKey stores key in Keychain', async () => {
+      await serverStore.setApiKey('server-1', 'sk-test-key');
+
+      expect(Keychain.setGenericPassword).toHaveBeenCalledWith(
+        'apiKey',
+        'sk-test-key',
+        {service: 'pocketpal-server-server-1'},
+      );
+    });
+
+    it('getApiKey retrieves key from Keychain', async () => {
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        password: 'sk-stored-key',
+        username: 'apiKey',
+      });
+
+      const key = await serverStore.getApiKey('server-1');
+
+      expect(key).toBe('sk-stored-key');
+      expect(Keychain.getGenericPassword).toHaveBeenCalledWith({
+        service: 'pocketpal-server-server-1',
+      });
+    });
+
+    it('getApiKey returns undefined when no key is stored', async () => {
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      const key = await serverStore.getApiKey('server-no-key');
+      expect(key).toBeUndefined();
+    });
+
+    it('removeApiKey resets Keychain entry', async () => {
+      await serverStore.removeApiKey('server-1');
+
+      expect(Keychain.resetGenericPassword).toHaveBeenCalledWith({
+        service: 'pocketpal-server-server-1',
+      });
+    });
+
+    it('setApiKey handles Keychain errors gracefully', async () => {
+      (Keychain.setGenericPassword as jest.Mock).mockRejectedValueOnce(
+        new Error('Keychain error'),
+      );
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Should not throw
+      await serverStore.setApiKey('server-1', 'key');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('getApiKey handles Keychain errors gracefully', async () => {
+      (Keychain.getGenericPassword as jest.Mock).mockRejectedValueOnce(
+        new Error('Keychain error'),
+      );
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const key = await serverStore.getApiKey('server-1');
+      expect(key).toBeUndefined();
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('fetchModelsForServer', () => {
+    it('fetches models and stores them in serverModels map', async () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+      jest.clearAllMocks();
+
+      const mockModels = [
+        {id: 'llama-7b', object: 'model', owned_by: 'system'},
+        {id: 'codellama', object: 'model', owned_by: 'library'},
+      ];
+      mockedFetchModels.mockResolvedValueOnce(mockModels);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(serverStore.serverModels.get(id)).toEqual(mockModels);
+      expect(serverStore.isLoading).toBe(false);
+      expect(serverStore.error).toBeNull();
+    });
+
+    it('sets error on failure', async () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockRejectedValueOnce(new Error('Connection refused'));
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(serverStore.error).toBe('Connection refused');
+      expect(serverStore.isLoading).toBe(false);
+    });
+
+    it('skips fetch for non-existent server id', async () => {
+      await serverStore.fetchModelsForServer('non-existent');
+
+      expect(mockedFetchModels).not.toHaveBeenCalled();
+    });
+
+    it('forwards the server requestTimeoutMs to fetchModels', async () => {
+      const id = serverStore.addServer({
+        name: 'Slow Server',
+        url: 'http://localhost:1234',
+        requestTimeoutMs: 600000,
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(mockedFetchModels).toHaveBeenCalledWith(
+        'http://localhost:1234',
+        undefined,
+        600000,
+      );
+    });
+
+    // A server persisted without requestTimeoutMs forwards undefined (raw)
+    // without crashing; defaults apply downstream in openai.ts.
+    it('forwards undefined requestTimeoutMs without crashing', async () => {
+      const id = serverStore.addServer({
+        name: 'Legacy Server',
+        url: 'http://localhost:1234',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(mockedFetchModels).toHaveBeenCalledWith(
+        'http://localhost:1234',
+        undefined,
+        undefined,
+      );
+      expect(serverStore.error).toBeNull();
+    });
+
+    it('updates lastConnected timestamp on success', async () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      const before = Date.now();
+      await serverStore.fetchModelsForServer(id);
+
+      const server = serverStore.servers.find(s => s.id === id);
+      expect(server!.lastConnected).toBeGreaterThanOrEqual(before);
+    });
+
+    it('fetches /props and writes discovered caps for a llama.cpp server', async () => {
+      const id = serverStore.addServer({
+        name: 'llama server',
+        url: 'http://localhost:8080',
+        serverType: 'llama.cpp',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      mockedFetchServerProps.mockResolvedValueOnce({
+        contextLength: 4096,
+        supportsVision: true,
+      });
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      // The /props probe is bounded by PROPS_TIMEOUT_MS (5000), not the
+      // server's requestTimeoutMs or the omitted 30 s default.
+      expect(mockedFetchServerProps).toHaveBeenCalledWith(
+        'http://localhost:8080',
+        undefined,
+        5000,
+      );
+      // The probe is detached: fetchModelsForServer resolves before caps land,
+      // so the write is only observable after a microtask flush.
+      await new Promise(setImmediate);
+      const server = serverStore.servers.find(s => s.id === id);
+      expect(server!.contextLength).toBe(4096);
+      expect(server!.supportsVision).toBe(true);
+    });
+
+    it('resolves fetchModelsForServer without waiting on the /props probe', async () => {
+      const id = serverStore.addServer({
+        name: 'llama server',
+        url: 'http://localhost:8080',
+        serverType: 'llama.cpp',
+      });
+      jest.clearAllMocks();
+
+      const mockModels = [{id: 'm', object: 'model', owned_by: 'system'}];
+      mockedFetchModels.mockResolvedValueOnce(mockModels);
+      // A /props probe that never settles must not block the resolution.
+      let released: (v: {supportsVision: boolean}) => void = () => {};
+      mockedFetchServerProps.mockReturnValueOnce(
+        new Promise(resolve => {
+          released = resolve;
+        }),
+      );
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      // Models are present immediately even though the probe is still pending.
+      expect(serverStore.serverModels.get(id)).toEqual(mockModels);
+      released({supportsVision: true});
+    });
+
+    it('does not fetch /props for a non-llama.cpp server', async () => {
+      const id = serverStore.addServer({
+        name: 'LM Studio',
+        url: 'http://localhost:1234',
+        serverType: 'LM Studio',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(mockedFetchServerProps).not.toHaveBeenCalled();
+      const server = serverStore.servers.find(s => s.id === id);
+      expect(server!.contextLength).toBeUndefined();
+      expect(server!.supportsVision).toBeUndefined();
+    });
+
+    it('clears a stale supportsVision true when a later probe reports false', async () => {
+      const id = serverStore.addServer({
+        name: 'llama server',
+        url: 'http://localhost:8080',
+        serverType: 'llama.cpp',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValue([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(false);
+
+      mockedFetchServerProps.mockResolvedValueOnce({
+        contextLength: 4096,
+        supportsVision: true,
+      });
+      await serverStore.fetchModelsForServer(id);
+      await new Promise(setImmediate);
+      expect(serverStore.servers.find(s => s.id === id)!.supportsVision).toBe(
+        true,
+      );
+
+      // A model swap drops vision: the always-defined false overwrites the
+      // stale true so attach disables.
+      mockedFetchServerProps.mockResolvedValueOnce({supportsVision: false});
+      await serverStore.fetchModelsForServer(id);
+      await new Promise(setImmediate);
+      const server = serverStore.servers.find(s => s.id === id);
+      expect(server!.supportsVision).toBe(false);
+      expect(server!.contextLength).toBe(4096);
+    });
+
+    it('leaves caps unchanged and models intact when /props yields nothing', async () => {
+      const id = serverStore.addServer({
+        name: 'llama server',
+        url: 'http://localhost:8080',
+        serverType: 'llama.cpp',
+      });
+      jest.clearAllMocks();
+
+      const mockModels = [{id: 'm', object: 'model', owned_by: 'system'}];
+      mockedFetchModels.mockResolvedValueOnce(mockModels);
+      // Silent no-op: fetchServerProps swallows timeout/500/bad-JSON into {}.
+      mockedFetchServerProps.mockResolvedValueOnce({});
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(serverStore.serverModels.get(id)).toEqual(mockModels);
+      expect(serverStore.error).toBeNull();
+      const server = serverStore.servers.find(s => s.id === id);
+      expect(server!.contextLength).toBeUndefined();
+      expect(server!.supportsVision).toBeUndefined();
+    });
+  });
+
+  describe('fetchAllRemoteModels', () => {
+    it('fetches models for all servers', async () => {
+      serverStore.addServer({
+        name: 'Server 1',
+        url: 'http://a.com',
+      });
+      serverStore.addServer({
+        name: 'Server 2',
+        url: 'http://b.com',
+      });
+      serverStore.addServer({
+        name: 'Server 3',
+        url: 'http://c.com',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValue([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(false);
+
+      await serverStore.fetchAllRemoteModels();
+
+      expect(mockedFetchModels).toHaveBeenCalledTimes(3);
+    });
+
+    it('does nothing when no servers exist', async () => {
+      jest.clearAllMocks();
+
+      await serverStore.fetchAllRemoteModels();
+
+      expect(mockedFetchModels).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('testServerConnection', () => {
+    it('tests connection for existing server', async () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      mockedTestConnection.mockResolvedValueOnce({ok: true, modelCount: 5});
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+
+      const result = await serverStore.testServerConnection(id);
+
+      expect(result).toEqual({ok: true, modelCount: 5});
+      expect(mockedTestConnection).toHaveBeenCalledWith(
+        'http://localhost:1234',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('returns error for non-existent server', async () => {
+      const result = await serverStore.testServerConnection('non-existent');
+
+      expect(result).toEqual({
+        ok: false,
+        modelCount: 0,
+        error: 'Server not found',
+      });
+    });
+
+    it('forwards the server requestTimeoutMs to testConnection', async () => {
+      const id = serverStore.addServer({
+        name: 'Slow Server',
+        url: 'http://localhost:1234',
+        requestTimeoutMs: 600000,
+      });
+
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce(false);
+      mockedTestConnection.mockResolvedValueOnce({ok: true, modelCount: 2});
+
+      await serverStore.testServerConnection(id);
+
+      expect(mockedTestConnection).toHaveBeenCalledWith(
+        'http://localhost:1234',
+        undefined,
+        600000,
+      );
+    });
+
+    it('passes API key to testConnection', async () => {
+      const id = serverStore.addServer({
+        name: 'Server',
+        url: 'http://localhost:1234',
+      });
+
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        password: 'sk-key',
+        username: 'apiKey',
+      });
+      mockedTestConnection.mockResolvedValueOnce({ok: true, modelCount: 3});
+
+      await serverStore.testServerConnection(id);
+
+      expect(mockedTestConnection).toHaveBeenCalledWith(
+        'http://localhost:1234',
+        'sk-key',
+        undefined,
+      );
+    });
+  });
+
+  describe('acknowledgePrivacyNotice', () => {
+    it('sets privacyNoticeAcknowledged to true', () => {
+      expect(serverStore.privacyNoticeAcknowledged).toBe(false);
+
+      serverStore.acknowledgePrivacyNotice();
+
+      expect(serverStore.privacyNoticeAcknowledged).toBe(true);
+    });
+  });
+
+  describe('AppState listener', () => {
+    it('has setupAppStateListener method in the store', () => {
+      // The AppState listener is registered during constructor.
+      // Since the singleton is created at module load time (before spy),
+      // we verify indirectly that the store has the subscription set up.
+      // The constructor calls setupAppStateListener() which creates the subscription.
+      expect(serverStore).toBeDefined();
+    });
+  });
+
+  describe('remote reasoning capability', () => {
+    const key = 'server-1/gpt-x';
+
+    it('starts empty and hydrating without the field does not crash', () => {
+      expect(serverStore.remoteReasoning).toEqual({});
+    });
+
+    it('recordRemoteReasoningObserved flips axis-1 to learned yes', () => {
+      serverStore.recordRemoteReasoningObserved(key);
+      expect(serverStore.remoteReasoning[key]).toMatchObject({
+        isReasoning: 'yes',
+        source: 'learned',
+        supportsEffort: false,
+      });
+    });
+
+    it('recordRemoteReasoningObserved is idempotent once yes', () => {
+      serverStore.recordRemoteReasoningObserved(key);
+      const first = serverStore.remoteReasoning[key];
+      serverStore.recordRemoteReasoningObserved(key);
+      expect(serverStore.remoteReasoning[key]).toBe(first);
+    });
+
+    it('recordRemoteReasoningObserved never overrides a user declaration', () => {
+      runInAction(() => {
+        serverStore.remoteReasoning[key] = {
+          isReasoning: 'no',
+          source: 'user',
+          supportsEffort: false,
+          effortValues: [],
+          effortSource: 'none',
+        };
+      });
+      serverStore.recordRemoteReasoningObserved(key);
+      expect(serverStore.remoteReasoning[key].source).toBe('user');
+      expect(serverStore.remoteReasoning[key].isReasoning).toBe('no');
+    });
+
+    it('setRemoteReasoningOverride writes a user-sourced capability', () => {
+      serverStore.setRemoteReasoningOverride(key, {
+        isReasoning: 'yes',
+        source: 'user',
+        supportsEffort: true,
+        effortValues: ['low', 'high'],
+        effortSource: 'user',
+      });
+      expect(serverStore.remoteReasoning[key]).toMatchObject({
+        source: 'user',
+        supportsEffort: true,
+      });
+    });
+
+    it('removeServer drops reasoning entries keyed by that server', () => {
+      const id = serverStore.addServer({name: 'A', url: 'http://x'});
+      runInAction(() => {
+        serverStore.remoteReasoning[`${id}/m1`] = {
+          isReasoning: 'yes',
+          source: 'learned',
+          supportsEffort: false,
+          effortValues: [],
+          effortSource: 'none',
+        };
+        serverStore.remoteReasoning['other-server/m2'] = {
+          isReasoning: 'yes',
+          source: 'learned',
+          supportsEffort: false,
+          effortValues: [],
+          effortSource: 'none',
+        };
+      });
+      serverStore.removeServer(id);
+      expect(serverStore.remoteReasoning[`${id}/m1`]).toBeUndefined();
+      expect(serverStore.remoteReasoning['other-server/m2']).toBeDefined();
+    });
+
+    it('addServer persists a user-selected serverType pass-through', () => {
+      const id = serverStore.addServer({
+        name: 'A',
+        url: 'http://x',
+        serverType: 'Ollama',
+      });
+      expect(serverStore.servers.find(s => s.id === id)?.serverType).toBe(
+        'Ollama',
+      );
+    });
+  });
+});

@@ -1,0 +1,1 @@
+export {STTMicButton} from './STTMicButton';
