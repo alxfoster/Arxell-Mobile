@@ -990,7 +990,12 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": ["Bytes", "KB", "MB", "GB"]
+      "byteSizes": [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+      ]
     },
     "chatView": {
       "menuItems": {
@@ -1009,91 +1014,14 @@
     }
   },
   "palsScreen": {
-    "sectionTitles": {
-      "myPalsLocal": "My Agents (local)",
-      "myLibrary": "My Library (palshub.ai)",
-      "discoverPals": "Discover Agents (palshub.ai)"
-    },
-    "systemPrompt": "System Prompt",
-    "videoAnalysis": "Video Analysis",
-    "videoAnalysisDescription": "This is a video-based AI assistant that provides real-time commentary on video streams from your device's camera.",
-    "captureInterval": "Capture Interval",
-    "captureIntervalUnit": "ms",
-    "world": "World",
-    "toneStyle": "Tone/Style",
-    "aiRole": "AI's Role",
-    "userRole": "My Role",
     "prompt": "Prompt",
     "assistant": "Assistant",
     "roleplay": "Roleplay",
     "video": "Video",
     "deletePal": "Delete Agent",
-    "deletePalMessage": "Are you sure you want to delete this agent?",
-    "missingModel": "Missing Model",
-    "missingModelMessage": "The default model \"{{modelName}}\" for this agent is not available. Please download it in the edit sheet or select a different model.",
     "search": "Search",
-    "profile": "Profile",
-    "signIn": "Sign In",
     "addPal": "Add Agent",
-    "signInToAccessLibrary": "Sign in to access your library from palshub.ai",
-    "signOut": "Sign Out",
-    "signOutConfirmation": "Are you sure you want to sign out?",
-    "signOutError": "Failed to sign out. Please try again.",
-    "account": "Account",
-    "signInToPalsHub": "Sign In to PalsHub",
-    "signInDescription": "Access your library, create private Agents, and sync across devices",
-    "searchAllPals": "Search all Agents...",
-    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?",
-    "filters": {
-      "all": "All",
-      "myPals": "My Agents",
-      "local": "Local",
-      "video": "Video",
-      "free": "Free",
-      "premium": "Premium"
-    },
-    "labels": {
-      "free": "Free",
-      "premium": "Premium",
-      "private": "Private",
-      "download": "Download",
-      "getFree": "Get Free"
-    },
-    "premiumPalDescription": "Premium agent from the palshub.ai community",
-    "premiumInfoText": "Visit palshub.ai to explore more agents",
-    "sortOptions": {
-      "newest": "Newest",
-      "oldest": "Oldest",
-      "rating": "Highest Rated",
-      "popular": "Most Popular"
-    },
-    "palDetailSheet": {
-      "by": "by",
-      "unknown": "Unknown",
-      "rating": "Rating",
-      "reviews": "Reviews",
-      "created": "Created",
-      "description": "Description",
-      "noDescriptionAvailable": "No description available.",
-      "categories": "Categories",
-      "tags": "Tags",
-      "systemPrompt": "System Prompt",
-      "downloaded": "Downloaded",
-      "success": "Success",
-      "palAddedToCollection": "Agent has been added to your collection!",
-      "error": "Error",
-      "failedToLoadDetails": "Failed to load agent details",
-      "failedToDownload": "Failed to download agent",
-      "premiumPalMessage": "This is a Premium Agent.\n• If you've already unlocked it with your Palshub account, simply sign in to access the full details.\n• Haven't unlocked it yet? Visit palshub.ai app to learn more.",
-      "notAvailable": "N/A",
-      "buyOnPalshub": "Buy on Palshub",
-      "finalizingPurchase": "Finalizing your purchase…",
-      "processingPurchase": "Processing — will unlock shortly.",
-      "checkoutSessionExpired": "Your session expired. Sign in again to continue.",
-      "signInAgain": "Sign in again",
-      "palNotAvailable": "This agent is not available for purchase right now.",
-      "checkoutFailed": "Something went wrong. Please try again."
-    }
+    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?"
   },
   "validation": {
     "nameRequired": "Name is required",

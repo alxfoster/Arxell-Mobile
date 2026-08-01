@@ -31,18 +31,12 @@ export interface PalCapabilities {
 /**
  * Local Pal - A pal that exists on the device
  *
- * This represents a pal that has been created locally or downloaded from PalsHub
- * and is stored in the device's local database. Local pals can be used offline
- * and have full access to all configuration options.
- *
- * Use the type discriminator `type: 'local'` to distinguish from PalsHubPal.
- * Use type guards from `src/utils/pal-type-guards.ts` for type-safe checks:
- * - isLocalPal(pal) - returns true if pal is a local Pal
- * - isPalsHubPal(pal) - returns true if pal is a PalsHubPal
+ * Agents are created or imported locally and stored in the device database.
+ * They can be used offline and have full access to all configuration options.
  */
 export interface Pal {
   // ============================================================================
-  // TYPE DISCRIMINATOR - Use this to distinguish between Pal and PalsHubPal
+  // TYPE DISCRIMINATOR
   // ============================================================================
   /** Type discriminator - Always 'local' for local pals */
   type: 'local';
@@ -138,41 +132,8 @@ export interface Pal {
   // ============================================================================
   // SOURCE TRACKING
   // ============================================================================
-  /** Origin of this pal: 'local' (created on device) or 'palshub' (downloaded) */
-  source: 'local' | 'palshub';
-  /** If downloaded from PalsHub, the original PalsHub pal ID */
-  palshub_id?: string;
-
-  // ============================================================================
-  // PALSHUB METADATA (for downloaded pals only)
-  // ============================================================================
-  /** Creator information from PalsHub */
-  creator_info?: {
-    id: string;
-    name?: string;
-    avatar_url?: string;
-  };
-  /** Category names from PalsHub */
-  categories?: string[];
-  /** Tag names from PalsHub */
-  tags?: string[];
-  /** Average rating from PalsHub */
-  rating?: number;
-  /** Number of reviews from PalsHub */
-  review_count?: number;
-  /** Protection level from PalsHub */
-  protection_level?: 'public' | 'reveal_on_purchase' | 'private';
-  /** Price in cents from PalsHub (0 for free) */
-  price_cents?: number;
-  /** Whether the user owns this pal on PalsHub */
-  is_owned?: boolean;
-
-  /**
-   * Raw PalsHub generation settings (from remote API)
-   * Different format than local completion settings
-   * Preserved for potential re-sync with PalsHub
-   */
-  rawPalshubGenerationSettings?: Record<string, unknown>;
+  /** Agents in Arxell are local, including Agents imported from older builds. */
+  source: 'local';
 
   // ============================================================================
   // TIMESTAMPS

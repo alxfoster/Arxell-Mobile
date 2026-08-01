@@ -23,7 +23,7 @@ export type DownloadProgressCardProps = {
 /**
  * Reusable progress card matching the Figma `Download` row pattern. Used by
  * `DownloadSheet` (onboarding-initiated downloads, no inline Stop) and the
- * Models / PalsHub list rows (inline Stop, smaller surrounding chrome).
+ * Compact model list rows (inline Stop, smaller surrounding chrome).
  */
 export const DownloadProgressCard: React.FC<DownloadProgressCardProps> = ({
   modelName,

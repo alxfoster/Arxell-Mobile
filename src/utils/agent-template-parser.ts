@@ -16,7 +16,7 @@ interface MustacheSchemaDefinition {
   options?: string[];
 }
 
-export interface ParsedMustacheTemplate {
+export interface ParsedAgentTemplate {
   cleanSystemPrompt: string;
   parameterSchema: ParameterDefinition[];
   defaultParameters: Record<string, any>;
@@ -58,7 +58,7 @@ function cleanTemplate(template: string): string {
 /**
  * Parses a Mustache template with JSON schema and extracts parameters
  */
-export function parsePalsHubTemplate(template: string): ParsedMustacheTemplate {
+export function parseAgentTemplate(template: string): ParsedAgentTemplate {
   if (!template || typeof template !== 'string') {
     return {
       cleanSystemPrompt: '',
@@ -72,7 +72,9 @@ export function parsePalsHubTemplate(template: string): ParsedMustacheTemplate {
   const cleanSystemPrompt = cleanTemplate(template);
 
   // Convert schema to Arxell format
-  const parameterSchema = schema ? convertJsonSchemaToPocketPal(schema) : [];
+  const parameterSchema = schema
+    ? convertJsonSchemaToAgentParameters(schema)
+    : [];
   const defaultParameters = schema
     ? extractDefaultParametersFromSchema(schema)
     : {};
@@ -87,7 +89,7 @@ export function parsePalsHubTemplate(template: string): ParsedMustacheTemplate {
 /**
  * Converts JSON schema to Arxell ParameterDefinition format
  */
-function convertJsonSchemaToPocketPal(
+function convertJsonSchemaToAgentParameters(
   schema: Record<string, MustacheSchemaDefinition>,
 ): ParameterDefinition[] {
   const parameterSchema: ParameterDefinition[] = [];
@@ -98,23 +100,26 @@ function convertJsonSchemaToPocketPal(
     }
 
     // Map schema types to Arxell types
-    let pocketPalType: ParameterDefinition['type'];
+    let agentParameterType: ParameterDefinition['type'];
     switch (definition.type) {
       case 'select':
-        pocketPalType = 'select';
+        agentParameterType = 'select';
         break;
       case 'combobox':
-        pocketPalType = 'combobox';
+        agentParameterType = 'combobox';
+        break;
+      case 'datetime_tag':
+        agentParameterType = 'datetime_tag';
         break;
       case 'text':
       default:
-        pocketPalType = 'text';
+        agentParameterType = 'text';
         break;
     }
 
     const paramDef: ParameterDefinition = {
       key,
-      type: pocketPalType,
+      type: agentParameterType,
       label: definition.label || key,
       required: definition.required || false,
       placeholder: definition.placeholder,
@@ -123,7 +128,7 @@ function convertJsonSchemaToPocketPal(
 
     // Add options for select and combobox fields
     if (
-      (pocketPalType === 'select' || pocketPalType === 'combobox') &&
+      (agentParameterType === 'select' || agentParameterType === 'combobox') &&
       Array.isArray(definition.options)
     ) {
       paramDef.options = definition.options;

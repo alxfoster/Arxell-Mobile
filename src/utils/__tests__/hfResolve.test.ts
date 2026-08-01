@@ -6,7 +6,7 @@
  *
  * resolveHFModelForDownload — repo + single-filename resolver built on the core.
  * Strict mode (no fallback): throws when a fetch fails or no sibling matches.
- * Tolerant mode (fallback provided): used by the PalsHub flow — fills gaps and
+ * Tolerant mode (fallback provided): fills gaps and
  * never throws, keeping per-fetch independence on partial responses.
  *
  * Both guard the silent-no-op regression: resolved URLs must be non-empty
@@ -208,7 +208,7 @@ describe('resolveHFModelForDownload — tolerant mode (fallback)', () => {
   });
 
   it('keeps the real sibling url when only model info fails (partial)', async () => {
-    // PalsHub tolerance: a partial response (file details succeed, model info
+    // Tolerant mode: a partial response (file details succeed, model info
     // fails) must still yield the real /resolve/ URL, not collapse to fallback.
     mockFetchModelInfo.mockRejectedValue(new Error('network'));
     mockFetchModelFilesDetails.mockResolvedValue(fileDetails);

@@ -1,6 +1,5 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Q} from '@nozbe/watermelondb';
 import {database} from '../database';
 import LocalPal from '../database/models/LocalPal';
 import type {Pal} from '../types/pal';
@@ -75,20 +74,9 @@ class PalRepository {
               record.parameterSchema = LocalPal.safeStringifyArray(
                 pal.parameterSchema || [],
               );
-              record.source = pal.source || 'local';
-              record.palshubId = pal.palshub_id;
-              record.creatorInfo = LocalPal.safeStringify(pal.creator_info);
-              record.categories = LocalPal.safeStringifyArray(
-                pal.categories || [],
-              );
-              record.tags = LocalPal.safeStringifyArray(pal.tags || []);
-              record.rating = pal.rating;
-              record.reviewCount = pal.review_count;
-              record.protectionLevel = pal.protection_level;
-              record.priceCents = pal.price_cents;
-              record.isOwned = pal.is_owned;
+              record.source = 'local';
               record.generationSettings = LocalPal.safeStringify(
-                pal.rawPalshubGenerationSettings,
+                pal.completionSettings,
               );
             });
         }
@@ -165,24 +153,10 @@ class PalRepository {
             record.parameterSchema = LocalPal.safeStringifyArray(
               palData.parameterSchema || [],
             );
-            record.source = palData.source || 'local';
-            record.palshubId = palData.palshub_id;
-            record.creatorInfo = LocalPal.safeStringify(palData.creator_info);
-            record.categories = LocalPal.safeStringifyArray(
-              palData.categories || [],
+            record.source = 'local';
+            record.generationSettings = LocalPal.safeStringify(
+              palData.completionSettings,
             );
-            record.tags = LocalPal.safeStringifyArray(palData.tags || []);
-            record.rating = palData.rating;
-            record.reviewCount = palData.review_count;
-            record.protectionLevel = palData.protection_level;
-            record.priceCents = palData.price_cents;
-            record.isOwned = palData.is_owned;
-            // Save generation settings (prefer local over PalsHub)
-            const generationSettings =
-              palData.completionSettings ||
-              palData.rawPalshubGenerationSettings;
-            record.generationSettings =
-              LocalPal.safeStringify(generationSettings);
             record.pact = LocalPal.safeStringify(palData.pact);
             record.greeting = LocalPal.safeStringify(palData.greeting);
           });
@@ -252,41 +226,9 @@ class PalRepository {
           if (updates.source !== undefined) {
             record.source = updates.source;
           }
-          if (updates.palshub_id !== undefined) {
-            record.palshubId = updates.palshub_id;
-          }
-          if (updates.creator_info !== undefined) {
-            record.creatorInfo = LocalPal.safeStringify(updates.creator_info);
-          }
-          if (updates.categories !== undefined) {
-            record.categories = LocalPal.safeStringifyArray(updates.categories);
-          }
-          if (updates.tags !== undefined) {
-            record.tags = LocalPal.safeStringifyArray(updates.tags);
-          }
-          if (updates.rating !== undefined) {
-            record.rating = updates.rating;
-          }
-          if (updates.review_count !== undefined) {
-            record.reviewCount = updates.review_count;
-          }
-          if (updates.protection_level !== undefined) {
-            record.protectionLevel = updates.protection_level;
-          }
-          if (updates.price_cents !== undefined) {
-            record.priceCents = updates.price_cents;
-          }
-          if (updates.is_owned !== undefined) {
-            record.isOwned = updates.is_owned;
-          }
-          if (
-            updates.rawPalshubGenerationSettings !== undefined ||
-            updates.completionSettings !== undefined
-          ) {
-            // Update generation settings (prefer local over PalsHub)
+          if (updates.completionSettings !== undefined) {
             record.generationSettings = LocalPal.safeStringify(
-              updates.completionSettings ||
-                updates.rawPalshubGenerationSettings,
+              updates.completionSettings,
             );
           }
           if (updates.pact !== undefined) {
@@ -324,31 +266,7 @@ class PalRepository {
 
   // Query methods for filtering
   async getLocalPals(): Promise<Pal[]> {
-    try {
-      const localPals = await database.collections
-        .get<LocalPal>('local_pals')
-        .query(Q.where('source', 'local'))
-        .fetch();
-
-      return localPals.map(pal => pal.toPal());
-    } catch (error) {
-      console.error('Error fetching local pals:', error);
-      return [];
-    }
-  }
-
-  async getPalsHubPals(): Promise<Pal[]> {
-    try {
-      const palshubPals = await database.collections
-        .get<LocalPal>('local_pals')
-        .query(Q.where('source', 'palshub'))
-        .fetch();
-
-      return palshubPals.map(pal => pal.toPal());
-    } catch (error) {
-      console.error('Error fetching palshub pals:', error);
-      return [];
-    }
+    return this.getAllPals();
   }
 
   async getVideoPals(): Promise<Pal[]> {

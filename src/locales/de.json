@@ -909,16 +909,13 @@
     }
   },
   "palsScreen": {
-    "sectionTitles": {
-      "myPalsLocal": "Meine Agents (lokal)",
-      "myLibrary": "Meine Bibliothek (palshub.ai)",
-      "discoverPals": "Entdecken Sie Agents (palshub.ai)"
-    },
-    "systemPrompt": "System Prompt",
-    "videoAnalysis": "Videoanalyse",
-    "videoAnalysisDescription": "Dies ist ein Video-basierter KI-Assistent, der Echtzeit-Kommentare des Videostreams der Kamera Ihres Geräts liefert.",
-    "captureInterval": "Erfassungsinterval",
-    "captureIntervalUnit": "ms",
-    "world": "Welt"
+    "prompt": "Prompt",
+    "assistant": "Assistant",
+    "roleplay": "Roleplay",
+    "video": "Video",
+    "deletePal": "Delete Agent",
+    "search": "Search",
+    "addPal": "Add Agent",
+    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?"
   }
 }

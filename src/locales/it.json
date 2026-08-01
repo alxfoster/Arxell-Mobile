@@ -61,5 +61,15 @@
     "physicalBatchSize": "Dimensione fisica del batch",
     "physicalBatchSizeDescription": "Dimensione fisica del batch: {{physicalBatchSize}}{{effectivePhysicalBatch}}",
     "cpuThreads": "Thread CPU"
+  },
+  "palsScreen": {
+    "prompt": "Prompt",
+    "assistant": "Assistant",
+    "roleplay": "Roleplay",
+    "video": "Video",
+    "deletePal": "Delete Agent",
+    "search": "Search",
+    "addPal": "Add Agent",
+    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?"
   }
 }

@@ -4,7 +4,7 @@
 //
 //  Mustache template renderer for system prompt parameter substitution
 //  Uses GRMustache.swift library (https://github.com/groue/GRMustache.swift)
-//  Matches the TypeScript implementation in src/utils/palshub-template-parser.ts
+//  Matches the TypeScript implementation in src/utils/agent-template-parser.ts
 //
 
 import Foundation

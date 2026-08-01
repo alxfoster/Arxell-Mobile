@@ -94,4 +94,19 @@ describe('LocalPal.toPal - pact / greeting round-trip', () => {
     expect(LocalPal.safeStringifyArray([])).toBe('[]');
     expect(LocalPal.safeStringifyArray(['a', 'b'])).toBe('["a","b"]');
   });
+
+  it('normalizes an Agent saved by an older remote-library build to local', () => {
+    const pal = makePal({
+      source: 'palshub',
+      systemPrompt: 'Preserve this prompt',
+      parameters: '{"name":"Ada"}',
+      generationSettings: '{"temperature":0.4}',
+    });
+
+    const view = pal.toPal();
+    expect(view.source).toBe('local');
+    expect(view.systemPrompt).toBe('Preserve this prompt');
+    expect(view.parameters).toEqual({name: 'Ada'});
+    expect(view.completionSettings?.temperature).toBe(0.4);
+  });
 });

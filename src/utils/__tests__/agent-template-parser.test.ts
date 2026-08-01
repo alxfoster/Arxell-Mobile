@@ -1,14 +1,14 @@
 /**
- * Tests for Mustache Template Parser (formerly PalsHub Template Parser)
+ * Tests for Mustache Template Parser (formerly Agent Template Parser)
  */
 
 import {
-  parsePalsHubTemplate,
+  parseAgentTemplate,
   generateFinalSystemPrompt,
-} from '../palshub-template-parser';
+} from '../agent-template-parser';
 
 describe('Mustache Template Parser', () => {
-  describe('parsePalsHubTemplate - Mustache Format', () => {
+  describe('parseAgentTemplate - Mustache Format', () => {
     it('should parse a simple Mustache template with JSON schema', () => {
       const template = `{{! json-schema-start
 {
@@ -25,7 +25,7 @@ json-schema-end }}
 
 You are {{characterName}}, a wise wizard.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
 
       expect(result.cleanSystemPrompt).toBe(
         'You are {{characterName}}, a wise wizard.',
@@ -82,7 +82,7 @@ As a {{characterClass}}, you have specific skills and abilities.
 
 Remember to stay true to your character's nature.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
 
       expect(result.cleanSystemPrompt).toContain(
         'You are {{characterName}}, a {{characterClass}} in {{worldSetting}}.',
@@ -158,7 +158,7 @@ json-schema-end }}
 
 Translate to {{language}}.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
 
       expect(result.cleanSystemPrompt).toBe('Translate to {{language}}.');
       expect(result.parameterSchema).toHaveLength(1);
@@ -178,7 +178,7 @@ Translate to {{language}}.`;
 
     it('should handle templates without JSON schema', () => {
       const template = 'You are {{name}}, a helpful assistant.';
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
 
       expect(result.cleanSystemPrompt).toBe(
         'You are {{name}}, a helpful assistant.',
@@ -198,7 +198,7 @@ json-schema-end }}
 
 You are {{characterName}}.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
 
       // Should fall back to no parameters when JSON is malformed
       expect(result.cleanSystemPrompt).toBe('You are {{characterName}}.');
@@ -393,7 +393,7 @@ json-schema-end }}
 
 You are a helpful assistant.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
       expect(result.cleanSystemPrompt).toBe('You are a helpful assistant.');
       expect(result.parameterSchema).toHaveLength(0);
       expect(result.defaultParameters).toEqual({});
@@ -413,7 +413,7 @@ json-schema-end }}
 
 You are {{validField}}.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
       expect(result.parameterSchema).toHaveLength(1);
       expect(result.parameterSchema[0].key).toBe('validField');
     });
@@ -422,7 +422,7 @@ You are {{validField}}.`;
       const longVariableName = 'a'.repeat(150); // Exceeds the 100 character limit
       const template = `You are {{${longVariableName}}}.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
       expect(result.cleanSystemPrompt).toBe(template);
       expect(result.parameterSchema).toHaveLength(0);
     });
@@ -431,7 +431,7 @@ You are {{validField}}.`;
       const template = `You are {{character
 name}}.`;
 
-      const result = parsePalsHubTemplate(template);
+      const result = parseAgentTemplate(template);
       expect(result.cleanSystemPrompt).toBe(template);
       expect(result.parameterSchema).toHaveLength(0);
     });

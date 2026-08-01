@@ -57,7 +57,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       return true
     }
 
-    // Handle other URL schemes (e.g., Google Sign-In)
+    // Ignore URL schemes not owned by the app.
     return false
   }
 

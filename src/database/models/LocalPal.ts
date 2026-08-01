@@ -26,16 +26,7 @@ export default class LocalPal extends Model {
   @field('capabilities') capabilities?: string; // JSON stringified PalCapabilities
   @field('parameters') parameters?: string; // JSON stringified Record<string, any>
   @field('parameter_schema') parameterSchema?: string; // JSON stringified ParameterDefinition[]
-  @field('source') source!: string; // 'local' | 'palshub'
-  @field('palshub_id') palshubId?: string;
-  @field('creator_info') creatorInfo?: string; // JSON stringified
-  @field('categories') categories?: string; // JSON stringified string[]
-  @field('tags') tags?: string; // JSON stringified string[]
-  @field('rating') rating?: number;
-  @field('review_count') reviewCount?: number;
-  @field('protection_level') protectionLevel?: string;
-  @field('price_cents') priceCents?: number;
-  @field('is_owned') isOwned?: boolean;
+  @field('source') source!: string;
   @field('generation_settings') generationSettings?: string; // JSON stringified
   @field('pact') pact?: string; // JSON stringified { talents: TalentRef[] }
   @field('greeting') greeting?: string; // JSON stringified Pal['greeting']
@@ -93,30 +84,6 @@ export default class LocalPal extends Model {
     }
   }
 
-  get creatorInfoObject(): Pal['creator_info'] | undefined {
-    try {
-      return this.creatorInfo ? JSON.parse(this.creatorInfo) : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  get categoriesArray(): string[] {
-    try {
-      return JSON.parse(this.categories || '[]');
-    } catch {
-      return [];
-    }
-  }
-
-  get tagsArray(): string[] {
-    try {
-      return JSON.parse(this.tags || '[]');
-    } catch {
-      return [];
-    }
-  }
-
   get pactObject(): {talents: TalentRef[]} | undefined {
     try {
       return this.pact ? JSON.parse(this.pact) : undefined;
@@ -128,16 +95,6 @@ export default class LocalPal extends Model {
   get greetingObject(): Pal['greeting'] {
     try {
       return this.greeting ? JSON.parse(this.greeting) : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  get generationSettingsObject(): Record<string, unknown> | undefined {
-    try {
-      return this.generationSettings
-        ? JSON.parse(this.generationSettings)
-        : undefined;
     } catch {
       return undefined;
     }
@@ -156,8 +113,7 @@ export default class LocalPal extends Model {
           defaultCompletionParams,
         } = require('../../utils/completionSettingsVersions');
 
-        // Merge with defaults to ensure all required fields are present
-        // This is especially important for PalsHub pals that may only have partial settings
+        // Merge with defaults so older locally stored settings remain valid.
         const mergedSettings = {
           ...defaultCompletionParams,
           ...settings,
@@ -190,17 +146,9 @@ export default class LocalPal extends Model {
       capabilities: this.capabilitiesObject,
       parameters: this.parametersObject,
       parameterSchema: this.parameterSchemaArray,
-      source: this.source as 'local' | 'palshub',
-      palshub_id: this.palshubId,
-      creator_info: this.creatorInfoObject,
-      categories: this.categoriesArray,
-      tags: this.tagsArray,
-      rating: this.rating,
-      review_count: this.reviewCount,
-      protection_level: this.protectionLevel as any,
-      price_cents: this.priceCents,
-      is_owned: this.isOwned,
-      rawPalshubGenerationSettings: this.generationSettingsObject,
+      // Records from older builds are intentionally detached from their remote
+      // origin and exposed as ordinary local Agents.
+      source: 'local',
       completionSettings: this.completionSettingsObject,
       pact: this.pactObject,
       greeting: this.greetingObject,

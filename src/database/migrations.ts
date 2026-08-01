@@ -2,6 +2,7 @@ import {
   schemaMigrations,
   createTable,
   addColumns,
+  unsafeExecuteSql,
 } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
@@ -141,6 +142,19 @@ export default schemaMigrations({
             {name: 'greeting', type: 'string', isOptional: true}, // JSON stringified Pal['greeting']
           ],
         }),
+      ],
+    },
+    // Version 8 retires the remote marketplace cache. Downloaded Agents live
+    // in local_pals, so normalize their legacy source marker before cleanup.
+    {
+      toVersion: 8,
+      steps: [
+        unsafeExecuteSql(
+          "UPDATE local_pals SET source = 'local' WHERE source IS NULL OR source != 'local';",
+        ),
+        unsafeExecuteSql('DROP TABLE IF EXISTS cached_pals;'),
+        unsafeExecuteSql('DROP TABLE IF EXISTS user_library;'),
+        unsafeExecuteSql('DROP TABLE IF EXISTS sync_status;'),
       ],
     },
   ],

@@ -40,7 +40,6 @@ Everything else — the offline LLM engine, agents, tool use, TTS, hardware acce
 - **🎤 Voice input (Arxell)** — talk to your assistant; Moonshine transcribes on-device.
 - **🗣️ Text-to-speech** — give your assistant a voice with on-device neural TTS (Kokoro and other engines), no cloud calls.
 - **🎭 Agents** — create personalized assistants with their own model, system prompt, and personality (Assistant and Roleplay types).
-- **🛍️ [PalsHub](https://palshub.ai/)** — discover and install community agents, including premium ones via in-app checkout.
 - **🛠️ Talents & tools** — let capable agents call built-in tools (calculator, date/time, rich HTML rendering) inside a tool-use loop.
 - **📥 Hugging Face integration** — search and download GGUF models, including gated ones, directly from the HF Hub with your access token.
 - **📊 Benchmarking** — measure tokens/sec and memory, and optionally compare on the [AI Phone Leaderboard](https://pocketpal.dev/leaderboard).

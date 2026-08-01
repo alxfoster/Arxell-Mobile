@@ -1,6 +1,6 @@
 import type {Pal} from '../types/pal';
 import type {Model} from './types';
-import {generateFinalSystemPrompt} from './palshub-template-parser';
+import {generateFinalSystemPrompt} from './agent-template-parser';
 
 export interface SystemPromptDependencies {
   pal?: Pal | null;

@@ -48,15 +48,6 @@ class LocalPal {
     this.parameters = '{}';
     this.parameterSchema = '[]';
     this.source = 'local';
-    this.palshubId = null;
-    this.creatorInfo = null;
-    this.categories = '[]';
-    this.tags = '[]';
-    this.rating = null;
-    this.reviewCount = null;
-    this.protectionLevel = null;
-    this.priceCents = null;
-    this.isOwned = null;
     this.generationSettings = null;
     this.createdAt = new Date();
     this.updatedAt = new Date();
@@ -105,16 +96,7 @@ class LocalPal {
       capabilities: JSON.parse(this.capabilities || '{}'),
       parameters: JSON.parse(this.parameters || '{}'),
       parameterSchema: JSON.parse(this.parameterSchema || '[]'),
-      source: this.source,
-      palshub_id: this.palshubId,
-      creator_info: this.creatorInfo ? JSON.parse(this.creatorInfo) : undefined,
-      categories: JSON.parse(this.categories || '[]'),
-      tags: JSON.parse(this.tags || '[]'),
-      rating: this.rating,
-      review_count: this.reviewCount,
-      protection_level: this.protectionLevel,
-      price_cents: this.priceCents,
-      is_owned: this.isOwned,
+      source: 'local',
       generation_settings: this.generationSettings
         ? JSON.parse(this.generationSettings)
         : undefined,
@@ -186,15 +168,6 @@ const schema = {
         {name: 'parameters', type: 'string'},
         {name: 'parameter_schema', type: 'string'},
         {name: 'source', type: 'string'},
-        {name: 'palshub_id', type: 'string', isOptional: true},
-        {name: 'creator_info', type: 'string', isOptional: true},
-        {name: 'categories', type: 'string', isOptional: true},
-        {name: 'tags', type: 'string', isOptional: true},
-        {name: 'rating', type: 'number', isOptional: true},
-        {name: 'review_count', type: 'number', isOptional: true},
-        {name: 'protection_level', type: 'string', isOptional: true},
-        {name: 'price_cents', type: 'number', isOptional: true},
-        {name: 'is_owned', type: 'boolean', isOptional: true},
         {name: 'generation_settings', type: 'string', isOptional: true},
         {name: 'created_at', type: 'number'},
         {name: 'updated_at', type: 'number'},

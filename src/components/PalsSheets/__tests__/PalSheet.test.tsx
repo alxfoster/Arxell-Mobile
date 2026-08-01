@@ -616,16 +616,15 @@ describe('PalSheet', () => {
       });
     });
 
-    it('handles palshub pal editing', async () => {
+    it('handles imported Agent editing', async () => {
       const {getByText, getByTestId} = renderPalSheet(
         createExistingPal({
-          source: 'palshub',
-          palshub_id: 'palshub-123',
+          source: 'local',
         }),
       );
 
       const nameInput = getByTestId('form-field-name');
-      fireEvent.changeText(nameInput, 'Updated PalsHub Pal');
+      fireEvent.changeText(nameInput, 'Updated Imported Agent');
 
       fireEvent.press(getByText('Save'));
 
@@ -633,8 +632,8 @@ describe('PalSheet', () => {
         expect(palStore.updatePal).toHaveBeenCalledWith(
           'test-pal-id',
           expect.objectContaining({
-            name: 'Updated PalsHub Pal',
-            source: 'palshub',
+            name: 'Updated Imported Agent',
+            source: 'local',
           }),
         );
       });
@@ -908,7 +907,7 @@ describe('PalSheet', () => {
 
     it('emits greeting with raw whitespace text when prompts are present', async () => {
       // Whitespace-only text has length > 0, so the predicate is true and the
-      // text is saved verbatim (no trim) — mirror of the PalsHub wire-side
+      // Text is saved verbatim (no trim) to preserve imported greetings.
       // predicate.
       const {getByTestId} = renderPalSheet(createBasicPal());
 

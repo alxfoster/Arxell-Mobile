@@ -750,5 +750,15 @@
     "networkError": "Erreur réseau : Impossible de se connecter à l'API",
     "downloadSetupFailedTitle": "Échec de configuration du téléchargement",
     "downloadSetupFailedMessage": "Échec de préparation du modèle pour le téléchargement : {{message}}"
+  },
+  "palsScreen": {
+    "prompt": "Prompt",
+    "assistant": "Assistant",
+    "roleplay": "Roleplay",
+    "video": "Video",
+    "deletePal": "Delete Agent",
+    "search": "Search",
+    "addPal": "Add Agent",
+    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?"
   }
 }

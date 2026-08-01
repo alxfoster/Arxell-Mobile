@@ -137,14 +137,6 @@ export function detectLegacyPalType(pal: Pal): LegacyPalType {
     return 'assistant';
   }
 
-  // Check categories if available
-  if (pal.categories?.some(cat => cat.toLowerCase().includes('roleplay'))) {
-    return 'roleplay';
-  }
-  if (pal.categories?.some(cat => cat.toLowerCase().includes('video'))) {
-    return 'video';
-  }
-
   // Default to assistant
   return 'assistant';
 }

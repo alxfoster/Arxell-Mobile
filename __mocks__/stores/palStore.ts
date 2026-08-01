@@ -3,8 +3,6 @@ import {migrateLegacyPalToNew} from '../../src/utils/pal-migration';
 
 class MockPalStore {
   pals: Pal[] = [];
-  isCheckoutEligible: boolean = false;
-
   constructor() {
     // makeAutoObservable(this);
   }
@@ -60,19 +58,8 @@ class MockPalStore {
     this.pals.filter(p => p.capabilities?.video === true),
   );
 
-  getLocalPals = jest.fn(() =>
-    this.pals.filter(p => p.source === 'local' || !p.source),
-  );
-  getDownloadedPalsHubPals = jest.fn(() =>
-    this.pals.filter(p => p.source === 'palshub'),
-  );
-  searchPalsHubPals = jest.fn(async () => {});
-  loadUserLibrary = jest.fn(async () => {});
-  loadUserCreatedPals = jest.fn(async () => {});
-
-  // PalsHub-related methods
-  isPalsHubPalDownloaded = jest.fn(() => false);
-  downloadPalsHubPal = jest.fn(async () => {});
+  getLocalPals = jest.fn(() => this.pals);
+  refreshLocalPals = jest.fn(async () => {});
 }
 
 export const mockPalStore = new MockPalStore();

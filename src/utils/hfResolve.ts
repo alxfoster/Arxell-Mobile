@@ -7,7 +7,7 @@ import type {HuggingFaceModel, ModelFile} from './types';
 /**
  * Optional per-field fallbacks used when the HF API response is incomplete.
  * When provided, fetch failures and a missing sibling are tolerated and these
- * values fill the gaps (the PalsHub flow already carries them). When omitted,
+ * caller-provided values fill gaps in incomplete API responses. When omitted,
  * the caller (e.g. the hub/run landing sheet) gets strict resolution via
  * `resolveHFRepo`, which throws on fetch failure.
  */
@@ -109,7 +109,7 @@ const assembleHFModel = (
  * whose `modelFile.url` points at the file's `/resolve/` endpoint.
  *
  * Builds on `resolveHFRepo` for the repo-level core, then finds the sibling
- * matching `filename`. With a `fallback` (the PalsHub flow), fetch failures and
+ * matching `filename`. With a caller-provided fallback, fetch failures and
  * an unmatched filename are tolerated and the supplied values fill the gaps;
  * without one, both throw.
  *
@@ -125,7 +125,7 @@ export const resolveHFModelForDownload = async (
   fallback?: HFResolveFallback,
 ): Promise<HFResolveResult> => {
   // Strict callers (no fallback) get the repo-level core as-is: a fetch failure
-  // throws. Tolerant callers (PalsHub) keep per-fetch independence so a partial
+  // throws. Tolerant callers keep per-fetch independence so a partial
   // response (e.g. file details succeed, model info fails) still yields the real
   // sibling URLs rather than collapsing to the fallback.
   let hfModel: HuggingFaceModel;

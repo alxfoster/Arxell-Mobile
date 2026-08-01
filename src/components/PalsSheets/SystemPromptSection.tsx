@@ -13,7 +13,7 @@ import {Checkbox} from '../Checkbox';
 import {ModelSelector} from './ModelSelector';
 import {useStructuredOutput} from '../../hooks/useStructuredOutput';
 import {modelStore} from '../../store';
-import {generateFinalSystemPrompt} from '../../utils/palshub-template-parser';
+import {generateFinalSystemPrompt} from '../../utils/agent-template-parser';
 
 import {ModelNotAvailable} from './ModelNotAvailable';
 import {L10nContext} from '../../utils';
@@ -166,7 +166,7 @@ export const SystemPromptSection = observer(
           '\nOutput the system prompt in JSON format with the key "prompt".',
         ].join('\n');
       } else {
-        // Generic fallback for other pal types (e.g., PalsHub pals)
+        // Generic fallback for custom Agent types
         return [
           'Generate a system prompt for an AI assistant with the following specifications:',
           `\nPurpose & Context: "${topic}"`,
@@ -222,7 +222,7 @@ export const SystemPromptSection = observer(
         const result = await generate(generatingPrompt, schema);
         setValue('systemPrompt', result?.prompt);
 
-        // Only set originalSystemPrompt if it's not already set (preserve PalsHub templates)
+        // Preserve an existing imported template.
         const currentOriginal = getValues('originalSystemPrompt');
         if (!currentOriginal) {
           setValue('originalSystemPrompt', result?.prompt);

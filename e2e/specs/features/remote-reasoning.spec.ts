@@ -11,7 +11,7 @@
  *   4. Thinking ON -> a reasoning bubble renders.
  *   5. Thinking OFF -> no reasoning bubble (the server honors the off hint).
  *
- * Backend-gated, mirroring purchase-flow.spec.ts: the suite self-skips when the
+ * Backend-gated: the suite self-skips when the
  * server is unreachable so CI without the LAN server stays green.
  *
  * Requires a real llama.cpp server with a reasoning model loaded.

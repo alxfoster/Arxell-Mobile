@@ -267,16 +267,8 @@ export interface ImportedPal {
   greeting?: Pal['greeting'];
   parameters: Record<string, any>;
   parameterSchema: ParameterDefinition[];
-  source: 'local' | 'palshub';
-  palshub_id?: string;
-  creator_info?: any;
-  categories?: string[];
-  tags?: string[];
-  rating?: number;
-  review_count?: number;
-  protection_level?: string;
-  price_cents?: number;
-  is_owned?: boolean;
+  /** Legacy imports may contain a marketplace source; all imports become local. */
+  source?: 'local' | 'palshub';
   generation_settings?: any;
   created_at?: string;
   updated_at?: string;
@@ -441,20 +433,8 @@ const transformImportPal = async (
     greeting: pal.greeting,
     parameters: pal.parameters,
     parameterSchema: pal.parameterSchema,
-    source: pal.source,
-    palshub_id: pal.palshub_id,
-    creator_info: pal.creator_info,
-    categories: pal.categories,
-    tags: pal.tags,
-    rating: pal.rating,
-    review_count: pal.review_count,
-    protection_level: pal.protection_level as
-      | 'public'
-      | 'reveal_on_purchase'
-      | 'private'
-      | undefined,
-    price_cents: pal.price_cents,
-    is_owned: pal.is_owned,
+    // Imported Agents are detached from any former remote marketplace.
+    source: 'local',
     completionSettings: pal.generation_settings,
   };
 };

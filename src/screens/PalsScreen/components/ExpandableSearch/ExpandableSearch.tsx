@@ -1,33 +1,26 @@
-import React, {useState, useEffect, useCallback, useContext} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {View, Animated, TextInput, TouchableOpacity} from 'react-native';
-
 import {observer} from 'mobx-react-lite';
 
 import {SearchIcon, XIcon} from '../../../../assets/icons';
-
 import {useTheme} from '../../../../hooks';
-import {L10nContext} from '../../../../utils';
-
 import {createStyles} from './styles';
-
 import {palStore} from '../../../../store/PalStore';
-
-import type {PalsHubPal} from '../../../../types/palshub';
+import type {Pal} from '../../../../types/pal';
 
 interface ExpandableSearchProps {
   isExpanded: boolean;
   onToggle: () => void;
-  onSearchResults: (results: PalsHubPal[]) => void;
+  /** null means no active query; an empty array means a query had no matches. */
+  onSearchResults: (results: Pal[] | null) => void;
 }
 
 export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
   ({isExpanded, onToggle, onSearchResults}) => {
     const theme = useTheme();
     const styles = createStyles(theme);
-    const l10n = useContext(L10nContext);
-
     const [searchQuery, setSearchQuery] = useState('');
-    const [animatedHeight] = useState(new Animated.Value(0));
+    const animatedHeight = useMemo(() => new Animated.Value(0), []);
 
     useEffect(() => {
       Animated.timing(animatedHeight, {
@@ -37,36 +30,34 @@ export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
       }).start();
     }, [isExpanded, animatedHeight]);
 
-    const performSearch = useCallback(async () => {
-      if (!searchQuery.trim()) {
-        onSearchResults([]);
+    const localSearchIndex = palStore.pals
+      .map(pal => `${pal.id}:${pal.name}:${pal.description ?? ''}`)
+      .join('\u0000');
+
+    useEffect(() => {
+      const query = searchQuery.trim().toLocaleLowerCase();
+      if (!query) {
+        onSearchResults(null);
         return;
       }
 
-      try {
-        await palStore.searchPalsHubPals({
-          query: searchQuery,
-        });
-        // For now, use cached results since searchPalsHubPals updates the store
-        onSearchResults(palStore.cachedPalsHubPals);
-      } catch (error) {
-        console.error('Search error:', error);
-        onSearchResults([]);
-      }
-    }, [searchQuery, onSearchResults]);
-
-    useEffect(() => {
-      if (searchQuery.trim()) {
-        const debounceTimer = setTimeout(performSearch, 300);
-        return () => clearTimeout(debounceTimer);
-      } else {
-        onSearchResults([]);
-      }
-    }, [searchQuery, performSearch, onSearchResults]);
+      const timer = setTimeout(() => {
+        onSearchResults(
+          palStore
+            .getPals()
+            .filter(pal =>
+              [pal.name, pal.description, pal.systemPrompt].some(value =>
+                value?.toLocaleLowerCase().includes(query),
+              ),
+            ),
+        );
+      }, 150);
+      return () => clearTimeout(timer);
+    }, [searchQuery, onSearchResults, localSearchIndex]);
 
     const handleClose = () => {
       setSearchQuery('');
-      onSearchResults([]);
+      onSearchResults(null);
       onToggle();
     };
 
@@ -87,7 +78,7 @@ export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
               style={styles.searchIcon}
             />
             <TextInput
-              placeholder={l10n.palsScreen.searchAllPals}
+              placeholder="Search your Agents"
               placeholderTextColor={theme.colors.onSurfaceVariant}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -109,7 +100,6 @@ export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
               </TouchableOpacity>
             )}
           </View>
-
           <View style={styles.searchActions}>
             <TouchableOpacity
               onPress={handleClose}

@@ -10,5 +10,15 @@
     "error": "Viga",
     "export": "Ekspordi",
     "networkError": "Võrguühenduse viga. Palun proovi uuesti."
+  },
+  "palsScreen": {
+    "prompt": "Prompt",
+    "assistant": "Assistant",
+    "roleplay": "Roleplay",
+    "video": "Video",
+    "deletePal": "Delete Agent",
+    "search": "Search",
+    "addPal": "Add Agent",
+    "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?"
   }
 }
