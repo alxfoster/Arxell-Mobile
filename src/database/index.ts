@@ -10,6 +10,7 @@ import {
   LocalPal,
 } from './models';
 
+// Keep the legacy filename so upgrades retain conversations, Agents, and settings.
 const adapter = new SQLiteAdapter({
   schema,
   migrations,
@@ -27,14 +28,8 @@ export const database = new Database({
     Message,
     CompletionSetting,
     GlobalSetting,
-          LocalPal,
+    LocalPal,
   ],
 });
 
-export {
-  ChatSession,
-  Message,
-  CompletionSetting,
-  GlobalSetting,
-  LocalPal,
-};
+export {ChatSession, Message, CompletionSetting, GlobalSetting, LocalPal};

@@ -23,7 +23,7 @@ const ANDROID_DIR = path.join(
   'assets',
   'fonts',
 );
-const INFO_PLIST = path.join(ROOT, 'ios', 'PocketPal', 'Info.plist');
+const INFO_PLIST = path.join(ROOT, 'ios', 'Arxell', 'Info.plist');
 const LOCALES_DIR = path.join(ROOT, 'src', 'locales');
 
 /**
@@ -43,7 +43,7 @@ function runWithOverrides(overrides = {}) {
       path.join(tmp, 'android', 'app', 'src', 'main', 'assets', 'fonts'),
       {recursive: true},
     );
-    fs.mkdirSync(path.join(tmp, 'ios', 'PocketPal'), {recursive: true});
+    fs.mkdirSync(path.join(tmp, 'ios', 'Arxell'), {recursive: true});
     fs.mkdirSync(path.join(tmp, 'src', 'locales'), {recursive: true});
 
     fs.copyFileSync(
@@ -63,10 +63,7 @@ function runWithOverrides(overrides = {}) {
         path.join(tmp, 'android', 'app', 'src', 'main', 'assets', 'fonts', f),
       );
     }
-    fs.copyFileSync(
-      INFO_PLIST,
-      path.join(tmp, 'ios', 'PocketPal', 'Info.plist'),
-    );
+    fs.copyFileSync(INFO_PLIST, path.join(tmp, 'ios', 'Arxell', 'Info.plist'));
     // index.ts + the locale JSONs feed the headline glyph-coverage check.
     for (const f of fs.readdirSync(LOCALES_DIR)) {
       if (f === 'index.ts' || f.endsWith('.json')) {
@@ -154,7 +151,7 @@ describe('verify-fonts.js', () => {
       .filter(line => !line.includes('JetBrainsMono'))
       .join('\n');
     const result = runWithOverrides({
-      files: {'ios/PocketPal/Info.plist': stripped},
+      files: {'ios/Arxell/Info.plist': stripped},
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain(

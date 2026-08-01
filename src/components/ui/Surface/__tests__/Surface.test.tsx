@@ -58,7 +58,7 @@ describe('Surface', () => {
     expect(flat.borderRadius).toBe(20);
   });
 
-  it('does not synthesise iOS shadow props — consumer-owned per pocketpal pattern', () => {
+  it('does not synthesise iOS shadow props — consumer-owned per Arxell pattern', () => {
     const {getByTestId} = renderWithTheme(
       <Surface testID="surf" elevation={3}>
         <Text>x</Text>

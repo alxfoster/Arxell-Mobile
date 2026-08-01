@@ -42,7 +42,7 @@ platform :ios do
     )
 
     build_ios_app(
-      scheme: "PocketPal",
+      scheme: "Arxell",
       export_method: "app-store",
       output_directory: "./build",
       clean: true,
@@ -125,10 +125,10 @@ platform :ios do
     )
 
     build_ios_app(
-      scheme: "PocketPal",
+      scheme: "Arxell",
       export_method: "development",
       output_directory: "./build",
-      output_name: "PocketPal.ipa",
+      output_name: "Arxell.ipa",
       clean: true,
       export_options: {
         provisioningProfiles: {

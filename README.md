@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/pocketpal-dark-v2.png" alt="Arxell logo" width="120" />
+<img src="src/assets/arxell-dark-v2.png" alt="Arxell logo" width="120" />
 
 # Arxell
 

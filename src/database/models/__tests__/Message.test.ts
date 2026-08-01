@@ -120,12 +120,12 @@ describe('Message.toMessageObject', () => {
       author: 'assistant',
       metadata: JSON.stringify({
         steps: [{content: 'hi'}],
-        authorData: {firstName: 'PocketPal'},
+        authorData: {firstName: 'Arxell'},
       }),
     });
     const obj = msg.toMessageObject();
     expect(obj.author.id).toBe('assistant');
-    expect(obj.author.firstName).toBe('PocketPal');
+    expect(obj.author.firstName).toBe('Arxell');
   });
 
   it('text message with imageUris in metadata is preserved on top-level', () => {

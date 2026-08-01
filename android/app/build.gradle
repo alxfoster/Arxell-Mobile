@@ -93,7 +93,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.pocketpal"
+    namespace "com.arxell"
     defaultConfig {
         applicationId "com.pocketpalai"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -182,12 +182,12 @@ android {
     productFlavors {
         prod {
             dimension "distribution"
-            // applicationId stays as defaultConfig: com.pocketpalai
+            // applicationId remains com.pocketpalai for upgrade compatibility
         }
         e2e {
             dimension "distribution"
             applicationIdSuffix ".e2e"
-            // Effective applicationId: com.pocketpalai.e2e
+            // Effective test applicationId: com.pocketpalai.e2e
             // Separate sandbox; installs side-by-side with prod.
         }
     }

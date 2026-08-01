@@ -1,6 +1,6 @@
 version: 0.1
 
-# AWS Device Farm Test Spec for PocketPal E2E Tests (iOS)
+# AWS Device Farm Test Spec for Arxell E2E Tests (iOS)
 # This file defines the test environment and execution steps for Appium Node.js tests
 
 # Use the new macOS Sequoia test host (required for iOS 18+)

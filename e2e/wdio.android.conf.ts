@@ -12,7 +12,8 @@ import {config as sharedConfig} from './wdio.shared.conf';
 import type {Options} from '@wdio/types';
 
 // Device Farm environment variables
-const DEVICE_UDID = process.env.DEVICEFARM_DEVICE_UDID || process.env.DEVICE_UDID;
+const DEVICE_UDID =
+  process.env.DEVICEFARM_DEVICE_UDID || process.env.DEVICE_UDID;
 const APP_PATH = process.env.DEVICEFARM_APP_PATH || process.env.APP_PATH;
 const APPIUM_HOST = process.env.APPIUM_HOST || '127.0.0.1';
 const APPIUM_PORT = parseInt(process.env.APPIUM_PORT || '4723', 10);
@@ -33,7 +34,7 @@ export const config: Options.Testrunner = {
       'appium:automationName': 'UiAutomator2',
       'appium:app': APP_PATH,
       'appium:appPackage': 'com.pocketpalai.e2e',
-      'appium:appActivity': 'com.pocketpal.MainActivity',
+      'appium:appActivity': 'com.arxell.MainActivity',
       'appium:noReset': false,
       'appium:fullReset': true,
       'appium:newCommandTimeout': 300,

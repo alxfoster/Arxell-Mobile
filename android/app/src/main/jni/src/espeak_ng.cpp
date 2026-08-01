@@ -18,7 +18,7 @@
 
 #include <espeak-ng/speak_lib.h>
 
-#define ESPEAK_LOG_TAG "PocketPalEspeakNg"
+#define ESPEAK_LOG_TAG "ArxellEspeakNg"
 #define ESPEAK_LOGI(...) __android_log_print(ANDROID_LOG_INFO, ESPEAK_LOG_TAG, __VA_ARGS__)
 #define ESPEAK_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, ESPEAK_LOG_TAG, __VA_ARGS__)
 
@@ -30,7 +30,7 @@ static constexpr int kPhonemeModeIpa = 2; // espeakPHONEMES_IPA
 static bool g_initialized = false;
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_pocketpalai_EspeakNgModule_nativeInit(JNIEnv* env, jobject /* thiz */, jstring jDataPath) {
+Java_com_arxell_EspeakNgModule_nativeInit(JNIEnv* env, jobject /* thiz */, jstring jDataPath) {
     const char* dataPath = env->GetStringUTFChars(jDataPath, nullptr);
     // `path` is the directory that CONTAINS espeak-ng-data/.
     int sampleRate = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, dataPath, 0);
@@ -55,7 +55,7 @@ Java_com_pocketpalai_EspeakNgModule_nativeInit(JNIEnv* env, jobject /* thiz */, 
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_pocketpalai_EspeakNgModule_nativePhonemize(JNIEnv* env, jobject /* thiz */, jstring jText) {
+Java_com_arxell_EspeakNgModule_nativePhonemize(JNIEnv* env, jobject /* thiz */, jstring jText) {
     if (!g_initialized) {
         return env->NewStringUTF("");
     }

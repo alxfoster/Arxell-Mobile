@@ -78,15 +78,15 @@ by deep link only. See `BenchmarkRunnerScreen.tsx` as reference.
 
 ## Current adapters
 
-| Adapter | Purpose | Commands |
-|---------|---------|----------|
+| Adapter         | Purpose                                                | Commands                                               |
+| --------------- | ------------------------------------------------------ | ------------------------------------------------------ |
 | `MemoryAdapter` | Memory profile snapshots for the `memory-profile` spec | `snap::<label>`, `clear::snapshots`, `read::snapshots` |
 
 ## Screens
 
-| Screen | Purpose | Activation |
-|--------|---------|------------|
-| `BenchmarkRunnerScreen` | Drives the benchmark matrix in-app for the `benchmark-matrix` spec | Deep link `pocketpal://e2e/benchmark` (registered in `android/app/src/e2e/AndroidManifest.xml`); manual button tap to start |
+| Screen                  | Purpose                                                            | Activation                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `BenchmarkRunnerScreen` | Drives the benchmark matrix in-app for the `benchmark-matrix` spec | Deep link `arxell://e2e/benchmark` (registered in `android/app/src/e2e/AndroidManifest.xml`); manual button tap to start |
 
 ## Deep-link dispatcher
 
@@ -94,7 +94,7 @@ by deep link only. See `BenchmarkRunnerScreen.tsx` as reference.
 used by `src/hooks/useDeepLinking.ts` inside a `__E2E__` gate. Today it
 handles two hosts:
 
-- `memory` — `pocketpal://memory?cmd=snap::<label>` etc. (memory-profile spec)
+- `memory` — `arxell://memory?cmd=snap::<label>` etc. (memory-profile spec)
 - `e2e/benchmark` — navigates to `BenchmarkRunnerScreen` (benchmark-matrix spec).
   On Android, the cold-launch path also lives in `useDeepLinking.ts`
   itself (a `__E2E__`-gated `Linking.getInitialURL()` effect) since RN's

@@ -2,7 +2,7 @@
  * Jest mock for `@pocketpalai/react-native-speech`.
  *
  * The real package ships untranspiled source + TurboModule bindings, neither
- * of which Jest can load. We expose the subset PocketPal uses, including
+ * of which Jest can load. We expose the subset Arxell uses, including
  * `createSpeechStream` (v2.1.0+) which returns a handle with
  * `append/finalize/cancel`. Each stream is a jest-tracked object so tests
  * can assert on the calls forwarded into it.

@@ -94,7 +94,7 @@ async function synthesize(engineId: NeuralEngineId): Promise<void> {
 }
 
 /**
- * Dispatch a `pocketpal://tts?cmd=...` command. Supported:
+ * Dispatch a `arxell://tts?cmd=...` command. Supported:
  *   download::<engine>   synthesize::<engine>   release
  * Writes a status file the spec polls for completion.
  */

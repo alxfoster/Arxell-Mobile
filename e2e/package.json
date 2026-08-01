@@ -1,7 +1,7 @@
 {
-  "name": "pocketpal-e2e",
+  "name": "arxell-e2e",
   "version": "1.0.0",
-  "description": "E2E tests for PocketPal using Appium + WebDriverIO",
+  "description": "E2E tests for Arxell using Appium + WebDriverIO",
   "scripts": {
     "e2e": "npx ts-node scripts/run-e2e.ts",
     "e2e:ios": "npx ts-node scripts/run-e2e.ts --platform ios",

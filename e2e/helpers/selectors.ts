@@ -1,5 +1,5 @@
 /**
- * Element selectors for PocketPal E2E tests
+ * Element selectors for Arxell E2E tests
  *
  * Selector strategies:
  * - byTestId: Primary strategy - uses ~testID (iOS) / XPath resource-id (Android)

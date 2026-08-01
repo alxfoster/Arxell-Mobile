@@ -22,7 +22,7 @@ $RNFirebaseAsStaticFramework = true
 
 ENV['RCT_NEW_ARCH_ENABLED'] = '1'
 
-target 'PocketPal' do
+target 'Arxell' do
   config = use_native_modules!
 
   use_react_native!(
@@ -40,7 +40,7 @@ target 'PocketPal' do
   # # Native module for @react-native-firebase/app-check
   # pod 'RNFBAppCheck', :path => '../node_modules/@react-native-firebase/app-check'
 
-  target 'PocketPalTests' do
+  target 'ArxellTests' do
     inherit! :complete
     # Pods for testing
   end

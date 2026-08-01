@@ -960,7 +960,7 @@ class ModelStore {
    * - HF: Uses DocumentDirectoryPath/models/hf/author/filename
    *
    * IMPORTANT: This logic is duplicated in native Swift code for iOS Shortcuts
-   * See: ios/PocketPal/AppIntents/PalDataProvider.swift - parseModelPath() method
+   * See: ios/Arxell/AppIntents/PalDataProvider.swift - parseModelPath() method
    * If we modify this function, we need to update the Swift version as well.
    *
    * @param model - The model object containing necessary metadata (origin, filename, author, etc.)

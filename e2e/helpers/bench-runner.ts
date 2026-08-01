@@ -63,7 +63,7 @@ export function pushConfig(
   matrix: ReturnType<typeof getBenchmarkMatrix>,
   udid?: string,
 ): string {
-  const cfgFile = path.join(os.tmpdir(), 'pocketpal-bench-config.json');
+  const cfgFile = path.join(os.tmpdir(), 'arxell-bench-config.json');
   fs.writeFileSync(cfgFile, JSON.stringify(buildConfig(matrix), null, 2));
   adb(udid, 'shell', 'mkdir', '-p', REMOTE_DIR);
   adb(udid, 'push', cfgFile, `${REMOTE_DIR}/bench-config.json`);
@@ -77,7 +77,7 @@ export async function deepLinkLaunch(): Promise<void> {
   // so a tap-driven start never fired onPress. The screen now invokes the
   // exact same start handler the button does.
   await driver.execute('mobile: deepLink', {
-    url: 'pocketpal://e2e/benchmark?autostart=1',
+    url: 'arxell://e2e/benchmark?autostart=1',
     package: PACKAGE,
   });
 }
@@ -87,7 +87,12 @@ export function pullLatestReport(outDir: string, udid?: string): string {
   // the device-side shell expands the glob). Each token is its own argv
   // slot so neither REMOTE_DIR nor the udid can carry shell metacharacters
   // into the host shell.
-  const remote = adb(udid, 'shell', 'ls', `${REMOTE_DIR}/benchmark-report-*.json`)
+  const remote = adb(
+    udid,
+    'shell',
+    'ls',
+    `${REMOTE_DIR}/benchmark-report-*.json`,
+  )
     .split('\n')
     .filter(Boolean)
     .sort()

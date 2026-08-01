@@ -1,6 +1,6 @@
 version: 0.1
 
-# AWS Device Farm Test Spec for PocketPal E2E Tests (Android)
+# AWS Device Farm Test Spec for Arxell E2E Tests (Android)
 # This file defines the test environment and execution steps for Appium Node.js tests
 
 phases:

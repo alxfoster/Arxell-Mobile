@@ -1,4 +1,4 @@
-# PocketPal E2E Tests
+# Arxell E2E Tests
 
 End-to-end tests using Appium + WebDriverIO for local devices and AWS Device Farm.
 
@@ -11,23 +11,23 @@ yarn install
 
 ## Test Specs
 
-| Spec | What it tests | Duration |
-|------|---------------|----------|
-| `quick-smoke` | Full user journey: navigate to Models → search HuggingFace → download SmolLM2-135M → load model → chat → verify inference completes | ~50-70s/device |
-| `load-stress` | Download model, run multiple load/unload cycles with inference between each. Catches crash-on-reload bugs | ~5-10 min/device |
-| `thinking` | Loads Qwen3-0.6B (thinking model), verifies thinking toggle, thinking bubble appears, toggle off suppresses it | ~3-5 min/device |
-| `diagnostic` | Dumps Appium page source XML at each screen. For debugging selectors, not a real test | ~10s |
-| `benchmark-matrix` | Iterates {models} × {quants} × {backends} on Android, writes canonical JSON report per run. Measurement infrastructure, not an automated gate. | ~25-45 min |
+| Spec               | What it tests                                                                                                                                  | Duration         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `quick-smoke`      | Full user journey: navigate to Models → search HuggingFace → download SmolLM2-135M → load model → chat → verify inference completes            | ~50-70s/device   |
+| `load-stress`      | Download model, run multiple load/unload cycles with inference between each. Catches crash-on-reload bugs                                      | ~5-10 min/device |
+| `thinking`         | Loads Qwen3-0.6B (thinking model), verifies thinking toggle, thinking bubble appears, toggle off suppresses it                                 | ~3-5 min/device  |
+| `diagnostic`       | Dumps Appium page source XML at each screen. For debugging selectors, not a real test                                                          | ~10s             |
+| `benchmark-matrix` | Iterates {models} × {quants} × {backends} on Android, writes canonical JSON report per run. Measurement infrastructure, not an automated gate. | ~25-45 min       |
 
 ## Benchmark Matrix (Android)
 
-Drives the in-app **BenchmarkRunnerScreen** via deep link (`pocketpal://e2e/benchmark`) — no WDIO required for ad-hoc runs. Three tiers gated by `BENCH_TIER`:
+Drives the in-app **BenchmarkRunnerScreen** via deep link (`arxell://e2e/benchmark`) — no WDIO required for ad-hoc runs. Three tiers gated by `BENCH_TIER`:
 
-| Tier | Models × quants × backends | Cells | Runtime | When |
-|------|----------------------------|------:|---------|------|
-| `smoke` (default) | 3 × 3 × 2 | 18 | ~10–15 min | Regression gate |
-| `focused` | 6 × 6 × 2 | ~60 | ~30–45 min | Investigation |
-| `full` | 11 × 8 × 2 | ~165 | ~3 hr/device | Default-tier recalibration |
+| Tier              | Models × quants × backends | Cells | Runtime      | When                       |
+| ----------------- | -------------------------- | ----: | ------------ | -------------------------- |
+| `smoke` (default) | 3 × 3 × 2                  |    18 | ~10–15 min   | Regression gate            |
+| `focused`         | 6 × 6 × 2                  |   ~60 | ~30–45 min   | Investigation              |
+| `full`            | 11 × 8 × 2                 |  ~165 | ~3 hr/device | Default-tier recalibration |
 
 Model + quant rosters live in [`fixtures/benchmark-models.ts`](fixtures/benchmark-models.ts) (single source: `BENCHMARK_FULL_MODELS`; smaller tiers derived as id filters).
 
@@ -40,7 +40,7 @@ BENCH_TIER=full  yarn build:bench-config --push <udid>    # specific device
 
 # 2. Cold-launch the runner via deep link
 adb shell am start -a android.intent.action.VIEW \
-  -d 'pocketpal://e2e/benchmark' -p com.pocketpalai.e2e
+  -d 'arxell://e2e/benchmark' -p com.pocketpalai.e2e
 
 # 3. Tap "Run benchmark matrix" on the screen (or via adb input tap)
 # 4. Wait for `bench-runner-screen-status` content-desc == "complete"
@@ -76,6 +76,7 @@ The merger dedupes across multiple raw reports (latest run per `model_id × quan
 ## Local Testing
 
 ### Prerequisites
+
 - Xcode configured (for iOS)
 - Android SDK configured (for Android)
 - Build the app first (see below)
@@ -143,20 +144,20 @@ yarn e2e --list-models
 
 ### Flags
 
-| Flag | Values | Default | Description |
-|------|--------|---------|-------------|
-| `--platform` | `ios`, `android`, `both` | _(required)_ | Which platform(s) to test |
-| `--spec` | `quick-smoke`, `load-stress`, `diagnostic`, `language`, `all` | `quick-smoke` | Which test spec to run |
-| `--models` | comma-separated model IDs | _(all)_ | Specific model(s) to test |
-| `--each-model` | _(flag)_ | off | Iterate spec once per model (isolated process) |
-| `--all-models` | _(flag)_ | off | Include crash-repro models in the pool |
-| `--devices` | `all`, `virtual-only`, `real-only`, `connected`, or comma-separated IDs | `all` | Device filter (implies `--each-device`) |
-| `--each-device` | _(flag)_ | off | Iterate across devices from `devices.json` |
-| `--mode` | `local`, `device-farm` | `local` | Execution mode (switches wdio config) |
-| `--skip-build` | _(flag)_ | builds by default | Skip app builds, reuse existing |
-| `--dry-run` | _(flag)_ | off | Print what would run without executing |
-| `--report-dir` | path | auto-timestamped | Override report output directory |
-| `--list-models` | _(flag)_ | off | List all available models and exit |
+| Flag            | Values                                                                  | Default           | Description                                    |
+| --------------- | ----------------------------------------------------------------------- | ----------------- | ---------------------------------------------- |
+| `--platform`    | `ios`, `android`, `both`                                                | _(required)_      | Which platform(s) to test                      |
+| `--spec`        | `quick-smoke`, `load-stress`, `diagnostic`, `language`, `all`           | `quick-smoke`     | Which test spec to run                         |
+| `--models`      | comma-separated model IDs                                               | _(all)_           | Specific model(s) to test                      |
+| `--each-model`  | _(flag)_                                                                | off               | Iterate spec once per model (isolated process) |
+| `--all-models`  | _(flag)_                                                                | off               | Include crash-repro models in the pool         |
+| `--devices`     | `all`, `virtual-only`, `real-only`, `connected`, or comma-separated IDs | `all`             | Device filter (implies `--each-device`)        |
+| `--each-device` | _(flag)_                                                                | off               | Iterate across devices from `devices.json`     |
+| `--mode`        | `local`, `device-farm`                                                  | `local`           | Execution mode (switches wdio config)          |
+| `--skip-build`  | _(flag)_                                                                | builds by default | Skip app builds, reuse existing                |
+| `--dry-run`     | _(flag)_                                                                | off               | Print what would run without executing         |
+| `--report-dir`  | path                                                                    | auto-timestamped  | Override report output directory               |
+| `--list-models` | _(flag)_                                                                | off               | List all available models and exit             |
 
 ### Direct WDIO Commands
 
@@ -171,21 +172,22 @@ npx wdio run wdio.android.local.conf.ts --spec specs/load-stress.spec.ts
 
 Both `wdio.ios.local.conf.ts` and `wdio.android.local.conf.ts` accept these env vars with backward-compatible defaults:
 
-| Env Var | iOS Default | Android Default | Purpose |
-|---------|-------------|-----------------|---------|
-| `E2E_DEVICE_NAME` | `iPhone 17 Pro` | `emulator-5554` | Device/simulator name |
-| `E2E_PLATFORM_VERSION` | `26.0` | `16` | OS version |
-| `E2E_DEVICE_UDID` | _(none)_ | _(none)_ | Device UDID (required for real devices) |
-| `E2E_APP_PATH` | `../ios/build/.../PocketPal.app` | `../android/.../app-e2e-releaseE2e.apk` | Path to built app |
-| `E2E_APPIUM_PORT` | `4723` | `4723` | Appium server port |
-| `E2E_XCODE_ORG_ID` | _(none)_ | N/A | Apple Team ID (required for real iOS devices) |
-| `E2E_XCODE_SIGNING_ID` | `Apple Development` | N/A | Code signing identity for WDA |
+| Env Var                | iOS Default                   | Android Default                         | Purpose                                       |
+| ---------------------- | ----------------------------- | --------------------------------------- | --------------------------------------------- |
+| `E2E_DEVICE_NAME`      | `iPhone 17 Pro`               | `emulator-5554`                         | Device/simulator name                         |
+| `E2E_PLATFORM_VERSION` | `26.0`                        | `16`                                    | OS version                                    |
+| `E2E_DEVICE_UDID`      | _(none)_                      | _(none)_                                | Device UDID (required for real devices)       |
+| `E2E_APP_PATH`         | `../ios/build/.../Arxell.app` | `../android/.../app-e2e-releaseE2e.apk` | Path to built app                             |
+| `E2E_APPIUM_PORT`      | `4723`                        | `4723`                                  | Appium server port                            |
+| `E2E_XCODE_ORG_ID`     | _(none)_                      | N/A                                     | Apple Team ID (required for real iOS devices) |
+| `E2E_XCODE_SIGNING_ID` | `Apple Development`           | N/A                                     | Code signing identity for WDA                 |
 
 ### Multi-Device Setup
 
 To use `--each-device`, set up a device inventory:
 
 1. Copy the template:
+
    ```bash
    cp devices.template.json devices.json
    ```
@@ -193,6 +195,7 @@ To use `--each-device`, set up a device inventory:
 2. Edit `devices.json` with your actual devices (simulators, emulators, USB-connected real devices). See `devices.template.json` for the format.
 
    **Finding device UDIDs:**
+
    ```bash
    # iOS
    xcrun xctrace list devices
@@ -220,6 +223,7 @@ e2e/reports/2026-02-13T16-14-12-758/
 ## AWS Device Farm Testing
 
 ### Prerequisites
+
 1. AWS Account with Device Farm access
 2. Create a Device Farm project
 3. Set environment variables or GitHub Secrets:
@@ -228,11 +232,13 @@ e2e/reports/2026-02-13T16-14-12-758/
    - `AWS_DEVICE_FARM_PROJECT_ARN`
 
 ### Run via GitHub Actions
+
 1. Go to Actions → "E2E Tests (AWS Device Farm)"
 2. Click "Run workflow"
 3. Select platform (android, ios, or both)
 
 ### Run manually
+
 ```bash
 yarn e2e:aws --platform android --app path/to/app.apk
 ```
@@ -280,6 +286,7 @@ e2e/
 ## Writing Tests
 
 ### Selectors
+
 Use `testID` and `accessibilityLabel` for reliable cross-platform selectors:
 
 ```typescript
@@ -299,6 +306,7 @@ await $(Selectors.byAccessibilityLabel('Chat input')).click();
 ```
 
 ### Page Objects
+
 Use page objects for common interactions:
 
 ```typescript
@@ -311,11 +319,11 @@ await ModelsPage.openHuggingFaceSearch();
 
 ## Cost Estimation (AWS Device Farm)
 
-| Usage | Approximate Cost |
-|-------|------------------|
-| 10 min test run, 1 device | ~$1.70 |
-| 10 min test run, 2 devices (iOS+Android) | ~$3.40 |
-| 30 runs/month, 2 devices | ~$100/month |
+| Usage                                    | Approximate Cost |
+| ---------------------------------------- | ---------------- |
+| 10 min test run, 1 device                | ~$1.70           |
+| 10 min test run, 2 devices (iOS+Android) | ~$3.40           |
+| 30 runs/month, 2 devices                 | ~$100/month      |
 
 Pricing: $0.17 per device minute
 
@@ -341,44 +349,49 @@ MODELS_PRESEEDED=1 yarn e2e --platform android --spec benchmark-matrix --skip-bu
 
 ### Environment variables
 
-| Var | Values | Description |
-|-----|--------|-------------|
-| `BENCH_MODELS` | comma-separated model ids (lowercase) | e.g. `qwen3-1.7b,gemma-3-1b` |
-| `BENCH_QUANTS` | comma-separated rung labels | e.g. `q4_0,q6_k`; full set: `iq1_s,q2_k,q3_k_m,q4_0,q4_k_m,q5_k_m,q6_k,q8_0` |
-| `BENCH_BACKENDS` | comma-separated tiers | `cpu`, `gpu` |
-| `MODELS_PRESEEDED` | `1` to enable | Skip downloads; use already-pushed GGUFs on device |
-| `E2E_DEVICE_SOC` | free-form string | Recorded in the JSON `soc` field; not used to drive tests |
+| Var                | Values                                | Description                                                                  |
+| ------------------ | ------------------------------------- | ---------------------------------------------------------------------------- |
+| `BENCH_MODELS`     | comma-separated model ids (lowercase) | e.g. `qwen3-1.7b,gemma-3-1b`                                                 |
+| `BENCH_QUANTS`     | comma-separated rung labels           | e.g. `q4_0,q6_k`; full set: `iq1_s,q2_k,q3_k_m,q4_0,q4_k_m,q5_k_m,q6_k,q8_0` |
+| `BENCH_BACKENDS`   | comma-separated tiers                 | `cpu`, `gpu`                                                                 |
+| `MODELS_PRESEEDED` | `1` to enable                         | Skip downloads; use already-pushed GGUFs on device                           |
+| `E2E_DEVICE_SOC`   | free-form string                      | Recorded in the JSON `soc` field; not used to drive tests                    |
 
 ### JSON schema
 
 Top-level:
+
 ```jsonc
 {
   "version": "1.0",
   "device": "SM-S948U",
-  "soc": "Snapdragon 8 Elite Gen 2",   // or null
+  "soc": "Snapdragon 8 Elite Gen 2", // or null
   "commit": "abc1234",
   "llama_rn_version": "0.12.0-rc.8",
   "platform": "android",
   "os_version": "16",
   "timestamp": "2026-04-21T…",
   "preseeded": false,
-  "runs": [ /* BenchmarkRun[] */ ]
+  "runs": [
+    /* BenchmarkRun[] */
+  ],
 }
 ```
 
 Per-run (`BenchmarkRun`):
+
 ```jsonc
 {
   "model_id": "qwen3-1.7b",
-  "quant": "q4_0",                      // canonical lowercase rung label
-  "requested_backend": "cpu",           // "cpu" | "gpu"
-  "effective_backend": "cpu",           // see below
-  "pp_avg": 123.4,                      // tokens/s, nullable
-  "tg_avg": 18.2,                       // tokens/s, nullable
+  "quant": "q4_0", // canonical lowercase rung label
+  "requested_backend": "cpu", // "cpu" | "gpu"
+  "effective_backend": "cpu", // see below
+  "pp_avg": 123.4, // tokens/s, nullable
+  "tg_avg": 18.2, // tokens/s, nullable
   "wall_ms": 24571,
-  "peak_memory_mb": 812.3,              // nullable
-  "log_signals": {                      // structured — see src/__automation__/logSignals.ts
+  "peak_memory_mb": 812.3, // nullable
+  "log_signals": {
+    // structured — see src/__automation__/logSignals.ts
     "opencl_init": true,
     "opencl_device_name": "QUALCOMM Adreno(TM) 840",
     "adreno_gen": "A8X",
@@ -386,13 +399,17 @@ Per-run (`BenchmarkRun`):
     "large_buffer_unsupported": false,
     "offloaded_layers": 29,
     "total_layers": 29,
-    "raw_matches": [ /* up to 200 matched native-log lines, debug only */ ]
+    "raw_matches": [
+      /* up to 200 matched native-log lines, debug only */
+    ],
   },
-  "init_settings": { /* modelStore.contextInitParams snapshot */ },
-  "status": "ok",                       // "ok" | "skipped" | "failed"
-  "reason": "…",                        // set on skipped
-  "error": "…",                         // set on failed (first 500 chars)
-  "timestamp": "2026-04-21T…"
+  "init_settings": {
+    /* modelStore.contextInitParams snapshot */
+  },
+  "status": "ok", // "ok" | "skipped" | "failed"
+  "reason": "…", // set on skipped
+  "error": "…", // set on failed (first 500 chars)
+  "timestamp": "2026-04-21T…",
 }
 ```
 
@@ -400,12 +417,12 @@ Per-run (`BenchmarkRun`):
 
 Derived from the structured `log_signals` payload, not regex on raw text:
 
-| Value | Meaning |
-|-------|---------|
-| `cpu` | No OpenCL init observed — pure CPU path. |
-| `opencl` | OpenCL initialised, all layers offloaded to GPU, no large-buffer regression. |
+| Value                | Meaning                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| `cpu`                | No OpenCL init observed — pure CPU path.                                                           |
+| `opencl`             | OpenCL initialised, all layers offloaded to GPU, no large-buffer regression.                       |
 | `cpu+opencl-partial` | OpenCL initialised but some layers ran on CPU, or `large_buffer_unsupported` triggered a fallback. |
-| `unknown` | OpenCL initialised but layer counts absent — investigate `log_signals.raw_matches`. |
+| `unknown`            | OpenCL initialised but layer counts absent — investigate `log_signals.raw_matches`.                |
 
 A row where `requested_backend=gpu` but `effective_backend=cpu` is the canonical "silent CPU fallback" we want to catch. The comparison script flags this as a regression even when `pp_avg` / `tg_avg` numbers look fine.
 

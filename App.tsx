@@ -196,7 +196,7 @@ const App = observer(() => {
                       E2E-only deep-link-driven benchmark matrix runner.
                       Hidden from the drawer sidebar via
                       drawerItemStyle:{display:'none'}; reachable only by
-                      the deep link pocketpal://e2e/benchmark in the e2e
+                      the deep link arxell://e2e/benchmark in the e2e
                       flavor build (see useDeepLinking cold-launch effect
                       and android/app/src/e2e/AndroidManifest.xml).
                     */}

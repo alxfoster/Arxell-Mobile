@@ -22,7 +22,7 @@ Outstanding validation:
 
 ## Executive summary
 
-PocketPal currently pins `llama.rn` **0.12.7**, which embeds llama.cpp **b10054** (`ac2557c`). Version **0.12.8** embeds llama.cpp **b10156** (`91f8c9c`).
+Arxell currently pins `llama.rn` **0.12.7**, which embeds llama.cpp **b10054** (`ac2557c`). Version **0.12.8** embeds llama.cpp **b10156** (`91f8c9c`).
 
 This is a low-risk JavaScript/API update but a medium-risk native-runtime update. The only public TypeScript change is documentation for a new multimodal state sidecar file. However, the llama.cpp sync changes model loading, reasoning/chat parsing, KV-cache handling, OpenCL, Hexagon, Metal, multimodal processing, and several model architectures. The upgrade should therefore be treated as a native inference-engine update rather than a routine patch-package bump.
 
@@ -42,7 +42,7 @@ Recommended outcome: upgrade to 0.12.8 after clean native builds and focused phy
 - The app does not currently pass `save_state_path` or `load_state_path`, so the headline 0.12.8 state-resume fix is not directly consumed today.
 - The app explicitly supplies `use_mmap` and `use_mlock`, making the upstream load-mode behavior change relevant to regression testing.
 
-## Upstream changes relevant to PocketPal
+## Upstream changes relevant to Arxell
 
 ### Public API compatibility
 
@@ -53,14 +53,14 @@ The JavaScript exports and callable TypeScript API are unchanged. The only `src/
 - llama.cpp moves from **b10054** to **b10156**.
 - New model architecture work includes Laguna, MiniMax M3, Nanbeige, GLM-DSA changes, and multimodal additions.
 - Chat parsing, reasoning-budget handling, grammar handling, sampling, vocabulary, model loading, and KV-cache internals changed.
-- Reasoning end-tag handling now supports multiple end tags internally. This can affect reasoning separation even though PocketPal does not use reasoning budgets.
+- Reasoning end-tag handling now supports multiple end tags internally. This can affect reasoning separation even though Arxell does not use reasoning budgets.
 
 ### Multimodal and state handling
 
 - Parallel multimodal state files are made valid and resumable.
 - Media placeholders and media identity are preserved through a `.meta` sidecar.
 - Slot memory rollback/reuse and prompt checkpointing were substantially revised.
-- PocketPal does not currently persist llama.rn state files, but it does use multimodal inference. Multi-turn image prompts and transitions back to text therefore need focused testing.
+- Arxell does not currently persist llama.rn state files, but it does use multimodal inference. Multi-turn image prompts and transitions back to text therefore need focused testing.
 
 ### Native backend changes
 
@@ -71,7 +71,7 @@ The JavaScript exports and callable TypeScript API are unchanged. The only `src/
 
 ### Model loading
 
-The JSI layer now reconciles `use_mmap` and `use_mlock` with llama.cpp's `load_mode`. PocketPal supplies both values explicitly, so behavior should remain equivalent, but all supported combinations should be verified for load success and memory use.
+The JSI layer now reconciles `use_mmap` and `use_mlock` with llama.cpp's `load_mode`. Arxell supplies both values explicitly, so behavior should remain equivalent, but all supported combinations should be verified for load success and memory use.
 
 ## Upgrade procedure
 
@@ -177,7 +177,7 @@ State-file save/load testing is optional for the current app because those param
 
 #### Loading and memory modes
 
-Test the settings PocketPal can emit:
+Test the settings Arxell can emit:
 
 - mmap on / mlock off;
 - mmap off / mlock off;
@@ -230,7 +230,7 @@ If acceptance fails:
 4. clean Android/iOS build outputs before rebuilding;
 5. verify About reports llama.cpp `10054 (ac2557c)`.
 
-Model files and persisted PocketPal settings should not require migration or rollback.
+Model files and persisted Arxell settings should not require migration or rollback.
 
 ## Acceptance checklist
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run-emulator.sh — Build, install, and launch PocketPal (prodDebug) on an
+# run-emulator.sh — Build, install, and launch Arxell (prodDebug) on an
 # Android emulator/device, with no manual environment setup required.
 #
 # The prodDebug variant is NOT in the React Gradle Plugin's debuggableVariants,
@@ -104,7 +104,7 @@ note "JAVA_HOME    = $JAVA_HOME ($("$JAVA_HOME/bin/java" -version 2>&1 | head -1
 # 3. JDK 17 for the Kotlin toolchain (RN plugin forces jvmToolchain(17)).
 #    A JDK 17 must be discoverable by Gradle because Foojay auto-download is
 #    disabled (the plugin's foojay 0.9.0 is incompatible with Gradle 9).
-JDK17="${POCKETPAL_JDK17:-}"
+JDK17="${ARXELL_JDK17:-${POCKETPAL_JDK17:-}}"
 if [[ -z "$JDK17" ]]; then
   for cand in "$HOME/jdk-17"* /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/temurin-17*; do
     [[ -x "$cand/bin/java" ]] && JDK17="$cand" && break
@@ -114,7 +114,7 @@ if [[ -n "$JDK17" ]]; then
   note "JDK17 toolchain = $JDK17"
 else
   warn "No JDK 17 detected for the Kotlin toolchain. If the build fails with a"
-  warn "toolchain error, set POCKETPAL_JDK17 or install Temurin 17."
+  warn "toolchain error, set ARXELL_JDK17 or install Temurin 17."
 fi
 
 # ---------------------------------------------------------------------------
@@ -173,8 +173,8 @@ fi
 
 # ---------------------------------------------------------------------------
 # Launch (resolve the MAIN/LAUNCHER activity dynamically — applicationId
-# (com.pocketpalai) differs from the manifest namespace (com.pocketpal),
-# so the activity class is com.pocketpal.MainActivity, not com.pocketpalai.*).
+# (com.pocketpalai) differs from the manifest namespace (com.arxell),
+# so the activity class is com.arxell.MainActivity, not com.pocketpalai.*).
 # ---------------------------------------------------------------------------
 if [[ $DO_LAUNCH -eq 1 ]]; then
   COMP="$("${ADB[@]}" shell cmd package resolve-activity --brief \

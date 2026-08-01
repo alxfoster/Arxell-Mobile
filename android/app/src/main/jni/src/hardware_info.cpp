@@ -29,12 +29,12 @@ typedef int (*mallopt_fn_t)(int, int);
 // The `appmodules` target compile flags include -DLOG_TAG="ReactNative",
 // which would clash if we redefined plain `LOG_TAG` here. Distinct name
 // to avoid -Wmacro-redefined.
-#define HW_INFO_LOG_TAG "PocketPalHardwareInfo"
+#define HW_INFO_LOG_TAG "ArxellHardwareInfo"
 #define HW_INFO_LOGI(...) \
     __android_log_print(ANDROID_LOG_INFO, HW_INFO_LOG_TAG, __VA_ARGS__)
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_pocketpal_HardwareInfoModule_nativePurgeAll(JNIEnv* /* env */, jobject /* this */) {
+Java_com_arxell_HardwareInfoModule_nativePurgeAll(JNIEnv* /* env */, jobject /* this */) {
     static mallopt_fn_t mallopt_fn =
         reinterpret_cast<mallopt_fn_t>(dlsym(RTLD_DEFAULT, "mallopt"));
     if (mallopt_fn == nullptr) {

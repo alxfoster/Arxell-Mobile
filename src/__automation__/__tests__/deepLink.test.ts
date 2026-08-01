@@ -16,7 +16,7 @@ jest.mock('../../utils/memoryProfile', () => ({
 // Helper: every DeepLinkParams has url+scheme+host at minimum; tests only
 // care about host + queryParams so we fill the rest with placeholders.
 const makeParams = (overrides: Partial<DeepLinkParams>): DeepLinkParams => ({
-  url: 'pocketpal://placeholder',
+  url: 'arxell://placeholder',
   scheme: 'pocketpal',
   host: 'memory',
   ...overrides,
@@ -99,11 +99,11 @@ describe('dispatchAutomationDeepLink', () => {
   });
 
   describe('bench host', () => {
-    it('navigates to BenchmarkRunner with autostart:false for pocketpal://e2e/benchmark', async () => {
+    it('navigates to BenchmarkRunner with autostart:false for arxell://e2e/benchmark', async () => {
       const navigate = jest.fn();
       const handled = await dispatchAutomationDeepLink(
         makeParams({
-          url: 'pocketpal://e2e/benchmark',
+          url: 'arxell://e2e/benchmark',
           host: 'e2e',
         }),
         {navigate},
@@ -116,11 +116,11 @@ describe('dispatchAutomationDeepLink', () => {
       });
     });
 
-    it('navigates with autostart:true for pocketpal://e2e/benchmark?autostart=1', async () => {
+    it('navigates with autostart:true for arxell://e2e/benchmark?autostart=1', async () => {
       const navigate = jest.fn();
       const handled = await dispatchAutomationDeepLink(
         makeParams({
-          url: 'pocketpal://e2e/benchmark?autostart=1',
+          url: 'arxell://e2e/benchmark?autostart=1',
           host: 'e2e',
         }),
         {navigate},
@@ -132,11 +132,11 @@ describe('dispatchAutomationDeepLink', () => {
       });
     });
 
-    it('navigates with autostart:false for pocketpal://e2e/benchmark?autostart=0', async () => {
+    it('navigates with autostart:false for arxell://e2e/benchmark?autostart=0', async () => {
       const navigate = jest.fn();
       const handled = await dispatchAutomationDeepLink(
         makeParams({
-          url: 'pocketpal://e2e/benchmark?autostart=0',
+          url: 'arxell://e2e/benchmark?autostart=0',
           host: 'e2e',
         }),
         {navigate},
@@ -151,7 +151,7 @@ describe('dispatchAutomationDeepLink', () => {
     it('returns true even when no navigation is supplied (cold-launch path handles nav itself)', async () => {
       const handled = await dispatchAutomationDeepLink(
         makeParams({
-          url: 'pocketpal://e2e/benchmark',
+          url: 'arxell://e2e/benchmark',
           host: 'e2e',
         }),
       );
@@ -162,7 +162,7 @@ describe('dispatchAutomationDeepLink', () => {
       const navigate = jest.fn();
       const handled = await dispatchAutomationDeepLink(
         makeParams({
-          url: 'pocketpal://e2e/other',
+          url: 'arxell://e2e/other',
           host: 'e2e',
         }),
         {navigate},

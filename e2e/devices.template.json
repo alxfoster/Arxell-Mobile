@@ -9,7 +9,7 @@
       "enabled": true,
       "deviceName": "iPhone 17 Pro",
       "platformVersion": "26.0",
-      "appPath": "../ios/build/Build/Products/Release-iphonesimulator/PocketPal.app"
+      "appPath": "../ios/build/Build/Products/Release-iphonesimulator/Arxell.app"
     },
     {
       "id": "iphone-15-real",
@@ -20,7 +20,7 @@
       "deviceName": "iPhone 15",
       "platformVersion": "18.2",
       "udid": "00008110-XXXXXXXXXXXX",
-      "appPath": "../ios/build/PocketPal.ipa",
+      "appPath": "../ios/build/Arxell.ipa",
       "xcodeOrgId": "YOUR_TEAM_ID",
       "xcodeSigningId": "Apple Development",
       "_note": "Real iOS devices require: (1) a signed IPA, (2) xcodeOrgId for WebDriverAgent signing. Find your Team ID in Xcode → Signing & Capabilities, or 'security find-identity -v -p codesigning'"
