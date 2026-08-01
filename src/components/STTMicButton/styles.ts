@@ -23,4 +23,10 @@ export const createStyles = ({theme}: {theme: Theme}) =>
       backgroundColor: theme.colors.secondaryContainer,
       borderColor: theme.colors.secondary,
     },
+    buttonHandsFree: {
+      backgroundColor: theme.colors.secondaryContainer,
+      borderColor: theme.colors.secondary,
+      borderWidth: 3,
+      elevation: 6,
+    },
   });

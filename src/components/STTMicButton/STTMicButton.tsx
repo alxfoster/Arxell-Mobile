@@ -1,6 +1,7 @@
 import * as React from 'react';
-import {Alert, Pressable} from 'react-native';
+import {Alert, Platform, Pressable, ToastAndroid} from 'react-native';
 import {observer} from 'mobx-react';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {ActivityIndicator} from 'react-native-paper';
 
@@ -36,6 +37,7 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
   const starting = sttStore.sessionState.mode === 'starting';
   const processing = sttStore.sessionState.mode === 'processing';
   const busy = starting || processing;
+  const handsFree = sttStore.handsFreeEnabled;
   const lastError = sttStore.lastError;
   const shownError = React.useRef<string | null>(null);
 
@@ -52,6 +54,10 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
   }, [lastError]);
 
   const handlePress = () => {
+    if (handsFree) {
+      sttStore.disableHandsFree();
+      return;
+    }
     if (sttStore.isInstallingModels || busy) {
       return;
     }
@@ -86,42 +92,91 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
       });
   };
 
+  const handleLongPress = () => {
+    if (
+      sttStore.isInstallingModels ||
+      busy ||
+      !sttStore.modelsInstalled ||
+      handsFree
+    ) {
+      // Missing models still use the established tap-to-install flow.
+      return;
+    }
+    ReactNativeHapticFeedback.trigger('notificationSuccess', {
+      enableVibrateFallback: true,
+      ignoreAndroidSystemSettings: false,
+    });
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(
+        'Hands-free voice enabled · Tap the mic to turn it off',
+        ToastAndroid.SHORT,
+      );
+    }
+    // Stop current playback before opening capture. Subsequent assistant
+    // speech may overlap capture so VAD can provide genuine barge-in.
+    ttsStore
+      .stop()
+      .catch(() => {})
+      .finally(() => {
+        sttStore.enableHandsFree();
+      });
+  };
+
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={1000}
       accessibilityRole="button"
       accessibilityLabel={
         sttStore.isInstallingModels
           ? `Installing voice input ${Math.round(sttStore.modelDownloadProgress * 100)}%`
-          : starting
-            ? 'Starting voice input'
-            : processing
-              ? 'Processing voice input'
-              : !sttStore.modelsInstalled
-                ? 'Install voice input'
-                : listening
-                  ? 'Stop voice input'
-                  : 'Start voice input'
+          : !sttStore.modelsInstalled
+            ? 'Install voice input'
+            : handsFree
+              ? 'Hands-free microphone active; tap to disable'
+              : starting
+                ? 'Starting voice input'
+                : processing
+                  ? 'Processing voice input'
+                  : listening
+                    ? 'Stop voice input'
+                    : 'Start voice input'
       }
-      disabled={busy || sttStore.isInstallingModels}
+      accessibilityHint={
+        handsFree
+          ? 'Stops continuous voice conversation'
+          : 'Long press to enable hands-free conversation'
+      }
+      disabled={(!handsFree && busy) || sttStore.isInstallingModels}
       testID="stt-mic-button"
-      style={[styles.button, listening && styles.buttonListening]}>
+      style={[
+        styles.button,
+        listening && styles.buttonListening,
+        handsFree && styles.buttonHandsFree,
+      ]}>
       {sttStore.isInstallingModels || busy ? (
         <ActivityIndicator size={20} />
       ) : (
         <Icon
           testID="stt-mic-icon"
           name={
-            listening
-              ? 'stop'
-              : sttStore.modelsInstalled
-                ? 'microphone'
-                : 'download'
+            handsFree
+              ? 'microphone'
+              : listening
+                ? 'stop'
+                : sttStore.modelsInstalled
+                  ? 'microphone'
+                  : 'download'
           }
           size={28}
           // The active container is blue in the dark theme, so use a fixed
           // black glyph rather than a theme accent that can disappear into it.
-          color={listening ? '#000000' : (color ?? theme.colors.secondary)}
+          color={
+            listening || handsFree
+              ? '#000000'
+              : (color ?? theme.colors.secondary)
+          }
         />
       )}
     </Pressable>

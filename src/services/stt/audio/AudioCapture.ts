@@ -7,7 +7,9 @@ import LiveAudioStream from 'react-native-live-audio-stream';
  * for any consumer that wants it).
  *
  * 16 kHz / mono / 16-bit matches both Silero VAD and Moonshine input exactly.
- * audioSource 6 = VOICE_RECOGNITION (Android) — speech-tuned AGC/NS.
+ * audioSource 7 = VOICE_COMMUNICATION (Android) — speech-tuned processing
+ * plus platform acoustic echo cancellation where the device supports it.
+ * Echo cancellation is essential while hands-free capture overlaps TTS.
  *
  * Permission: Android uses RN's built-in PermissionsAndroid (no extra dep);
  * iOS relies on the NSMicrophoneUsageDescription key + the auto-prompt on
@@ -20,7 +22,7 @@ const OPTIONS = {
   sampleRate: 16000,
   channels: 1,
   bitsPerSample: 16,
-  audioSource: 6,
+  audioSource: 7,
   wavFile: 'stt-live-audio.wav',
   bufferSize: 1024, // ~512 samples (32 ms) — VAD-friendly granularity
 };

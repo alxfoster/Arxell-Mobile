@@ -91,6 +91,9 @@ export interface STTSessionCallbacks {
   onPartialText: (text: string) => void;
   /** A finalized utterance. */
   onFinalText: (text: string) => void;
+  /** VAD confirmed the beginning of a real utterance. Used by hands-free
+   *  conversation mode to interrupt an assistant response (barge-in). */
+  onSpeechStart?: () => void;
   /** The endpointer declared end-of-speech (silence >= endpointSilenceMs). */
   onEndpoint: () => void;
   onError: (err: unknown) => void;

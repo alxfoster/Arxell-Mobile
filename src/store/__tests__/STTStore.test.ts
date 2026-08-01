@@ -78,10 +78,12 @@ describe('STTStore', () => {
       mockStopSession.mockClear();
       // `start` would have set listening; force state then background.
       (store as any).sessionState = {mode: 'listening'};
+      store.handsFreeEnabled = true;
       appStateHandlers[0]!('background');
       // stop() is fire-and-forget on background.
       await Promise.resolve();
       expect(mockStopSession).toHaveBeenCalled();
+      expect(store.handsFreeEnabled).toBe(false);
     });
   });
 
@@ -175,6 +177,53 @@ describe('STTStore', () => {
       expect(store.partialText).toBe('');
       expect(store.finalText).toBe('');
       expect(store.sessionState.mode).toBe('listening');
+    });
+  });
+
+  describe('hands-free mode', () => {
+    beforeEach(() => {
+      (store as any).modelsInstalled = true;
+    });
+
+    it('latches and starts listening', async () => {
+      await store.enableHandsFree();
+
+      expect(store.handsFreeEnabled).toBe(true);
+      expect(mockStartSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports confirmed speech for barge-in', async () => {
+      await store.enableHandsFree();
+      const callbacks = mockStartSession.mock.calls[0]![1];
+
+      callbacks.onSpeechStart();
+
+      expect(store.speechStartSequence).toBe(1);
+    });
+
+    it('restarts after each finalized utterance while latched', async () => {
+      await store.enableHandsFree();
+      const callbacks = mockStartSession.mock.calls[0]![1];
+
+      callbacks.onFinalText('next turn');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(store.finalText).toBe('next turn');
+      expect(mockStopSession).toHaveBeenCalled();
+      expect(mockStartSession).toHaveBeenCalledTimes(2);
+      expect(store.handsFreeEnabled).toBe(true);
+    });
+
+    it('disables and discards an in-flight utterance', async () => {
+      await store.enableHandsFree();
+      store.partialText = 'unfinished';
+
+      await store.disableHandsFree();
+
+      expect(store.handsFreeEnabled).toBe(false);
+      expect(store.partialText).toBe('');
+      expect(mockStopSession).toHaveBeenCalledWith(false);
     });
   });
 

@@ -6,6 +6,8 @@ export const mockSTTStore = {
   sessionState: {mode: 'idle'},
   partialText: '',
   finalText: '',
+  handsFreeEnabled: false,
+  speechStartSequence: 0,
   lastError: null,
   modelsInstalled: false,
   isInstallingModels: false,
@@ -15,6 +17,8 @@ export const mockSTTStore = {
   init: jest.fn().mockResolvedValue(undefined),
   start: jest.fn().mockResolvedValue(undefined),
   stop: jest.fn().mockResolvedValue(undefined),
+  enableHandsFree: jest.fn().mockResolvedValue(undefined),
+  disableHandsFree: jest.fn().mockResolvedValue(undefined),
   installModels: jest.fn().mockResolvedValue(undefined),
   clearFinalText: jest.fn(),
 };

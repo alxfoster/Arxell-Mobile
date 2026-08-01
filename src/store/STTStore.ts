@@ -58,6 +58,12 @@ export class STTStore {
   partialText: string = '';
   /** Last finalized utterance. ChatView reacts to this to auto-submit. */
   finalText: string = '';
+  /** Latched, foreground-only conversation mode. It deliberately is not
+   * persisted: reopening Arxell must never surprise the user with a live mic. */
+  handsFreeEnabled: boolean = false;
+  /** Monotonic VAD event consumed by ChatView to implement barge-in without
+   * coupling the audio runtime to generation/TTS stores. */
+  speechStartSequence: number = 0;
   lastError: string | null = null;
   /** Model assets are user-installed, never silently fetched on startup. */
   modelsInstalled: boolean = false;
@@ -128,7 +134,9 @@ export class STTStore {
 
   private handleAppStateChange = (nextAppState: AppStateStatus) => {
     if (nextAppState === 'background' || nextAppState === 'inactive') {
-      this.stop(false)
+      // Hands-free is intentionally foreground-only. Returning to the app
+      // requires another deliberate long press before the mic can reopen.
+      this.disableHandsFree()
         .then(() => sttRuntime.release())
         .catch(err => {
           console.warn('[STTStore] background stop failed:', err);
@@ -207,7 +215,30 @@ export class STTStore {
 
   // --- session lifecycle ----------------------------------------------
 
-  /** Begin a dictation session (tap trigger). */
+  /** Latch foreground hands-free mode and begin listening. */
+  async enableHandsFree(): Promise<void> {
+    if (!this.isSTTEnabled || !this.modelsInstalled) {
+      return;
+    }
+    this.handsFreeEnabled = true;
+    await this.start();
+  }
+
+  /** Turn off hands-free immediately and discard any unfinished utterance. */
+  async disableHandsFree(): Promise<void> {
+    if (!this.handsFreeEnabled && !this.isListening) {
+      return;
+    }
+    this.handsFreeEnabled = false;
+    // Invalidate callbacks before native teardown so a final event racing this
+    // tap cannot submit text after the user has switched the microphone off.
+    this.sessionGeneration += 1;
+    this.partialText = '';
+    this.finalText = '';
+    await this.stop(false);
+  }
+
+  /** Begin a dictation session (tap trigger or a hands-free turn). */
   async start(): Promise<void> {
     if (!this.isSTTEnabled || this.isListening || !this.modelsInstalled) {
       return;
@@ -215,7 +246,11 @@ export class STTStore {
     const generation = ++this.sessionGeneration;
     runInAction(() => {
       this.partialText = '';
-      this.finalText = '';
+      // A hands-free restart may happen before React consumes the preceding
+      // final transcript. Keep it until ChatView explicitly clears it.
+      if (!this.handsFreeEnabled) {
+        this.finalText = '';
+      }
       this.lastError = null;
       // The microphone begins buffering immediately, but the native ASR/VAD
       // sessions may still be loading. The button shows a ready indicator and
@@ -248,11 +283,31 @@ export class STTStore {
               this.finalText = text;
               this.sessionState = {mode: 'idle'};
             });
-            // Endpointed sessions are single-utterance. Stop capture and
-            // release the native transcriber immediately; otherwise the mic
-            // would remain open after the chat has submitted the message.
-            sttRuntime.stopSession().catch(err => {
-              console.warn('[STTStore] endpoint stop failed:', err);
+            // A normal tap is one utterance. Hands-free uses the same clean
+            // session boundary, then opens a fresh session for the next turn.
+            sttRuntime
+              .stopSession()
+              .then(() => {
+                if (
+                  generation === this.sessionGeneration &&
+                  this.handsFreeEnabled
+                ) {
+                  return this.start();
+                }
+              })
+              .catch(err => {
+                console.warn('[STTStore] endpoint stop/restart failed:', err);
+                runInAction(() => {
+                  this.handsFreeEnabled = false;
+                });
+              });
+          },
+          onSpeechStart: () => {
+            if (generation !== this.sessionGeneration) {
+              return;
+            }
+            runInAction(() => {
+              this.speechStartSequence += 1;
             });
           },
           onEndpoint: () => {
@@ -272,6 +327,7 @@ export class STTStore {
             runInAction(() => {
               this.lastError = message;
               this.sessionState = {mode: 'idle'};
+              this.handsFreeEnabled = false;
             });
           },
         },
@@ -287,6 +343,7 @@ export class STTStore {
       runInAction(() => {
         this.lastError = message;
         this.sessionState = {mode: 'idle'};
+        this.handsFreeEnabled = false;
       });
     }
   }

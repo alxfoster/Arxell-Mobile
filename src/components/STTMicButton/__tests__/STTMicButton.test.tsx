@@ -26,6 +26,8 @@ describe('STTMicButton', () => {
     (sttStore as any).sessionState = {mode: 'idle'};
     (sttStore as any).isInstallingModels = false;
     (sttStore as any).modelDownloadProgress = 0;
+    (sttStore as any).handsFreeEnabled = false;
+    (sttStore as any).speechStartSequence = 0;
   });
 
   it('renders the mic icon when ready', () => {
@@ -51,6 +53,28 @@ describe('STTMicButton', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(sttStore.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('enables hands-free mode on long press without invoking single-tap start', async () => {
+    const {getByTestId} = renderButton();
+    fireEvent(getByTestId('stt-mic-button'), 'longPress');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sttStore.enableHandsFree).toHaveBeenCalledTimes(1);
+    expect(sttStore.start).not.toHaveBeenCalled();
+  });
+
+  it('disables latched hands-free mode on tap', () => {
+    (sttStore as any).handsFreeEnabled = true;
+    (sttStore as any).isListening = true;
+    (sttStore as any).sessionState = {mode: 'listening'};
+    const {getByTestId} = renderButton();
+
+    fireEvent.press(getByTestId('stt-mic-button'));
+
+    expect(sttStore.disableHandsFree).toHaveBeenCalledTimes(1);
+    expect(sttStore.stop).not.toHaveBeenCalled();
   });
 
   it('prompts to install when models are missing (and does not start)', () => {

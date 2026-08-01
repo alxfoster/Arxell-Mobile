@@ -53,7 +53,7 @@ import {t} from '../../locales';
 import {getModelMemoryRequirement} from '../../utils/memoryEstimator';
 import {CONTEXT_LADDER} from '../../utils/bannerVariantResolver';
 
-import {chatSessionStore, modelStore, sttStore} from '../../store';
+import {chatSessionStore, modelStore, sttStore, ttsStore} from '../../store';
 
 import {MessageType, User} from '../../utils/types';
 import {Pal} from '../../types/pal';
@@ -541,6 +541,7 @@ export const ChatView = observer(
     const latestInputTextRef = React.useRef(inputText);
     const voiceDraftPrefixRef = React.useRef('');
     const wasVoiceListeningRef = React.useRef(false);
+    const handledSpeechStartRef = React.useRef(sttStore.speechStartSequence);
     latestInputTextRef.current = inputText;
     const mergeVoiceText = React.useCallback(
       (prefix: string, voice: string) => {
@@ -561,6 +562,40 @@ export const ChatView = observer(
       wasVoiceListeningRef.current = sttStore.isListening;
     }, [sttStore.isListening]);
 
+    // A confirmed utterance while hands-free is armed interrupts both spoken
+    // audio and token generation. Capture remains open so the user's barge-in
+    // becomes the next submitted turn.
+    React.useEffect(() => {
+      if (
+        !sttStore.handsFreeEnabled ||
+        sttStore.speechStartSequence === handledSpeechStartRef.current
+      ) {
+        return;
+      }
+      handledSpeechStartRef.current = sttStore.speechStartSequence;
+      ttsStore.stop().catch(() => {});
+      if (isStreaming || isStopVisible) {
+        onStopPress?.();
+      }
+    }, [
+      isStopVisible,
+      isStreaming,
+      onStopPress,
+      sttStore.handsFreeEnabled,
+      sttStore.speechStartSequence,
+    ]);
+
+    // Leaving this conversation always releases a latched microphone. The
+    // AppState listener separately handles backgrounding.
+    React.useEffect(
+      () => () => {
+        if (sttStore.handsFreeEnabled) {
+          sttStore.disableHandsFree().catch(() => {});
+        }
+      },
+      [chatSessionStore.activeSessionId],
+    );
+
     // Stream the assembled stable + provisional transcript into the composer.
     React.useEffect(() => {
       if (sttStore.isListening && sttStore.partialText) {
@@ -578,7 +613,7 @@ export const ChatView = observer(
         return;
       }
       const text = mergeVoiceText(voiceDraftPrefixRef.current, voiceText);
-      if (sttStore.autoSubmit) {
+      if (sttStore.autoSubmit || sttStore.handsFreeEnabled) {
         wrappedOnSendPress({type: 'text', text});
       } else {
         setInputText(text);

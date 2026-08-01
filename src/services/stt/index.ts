@@ -292,6 +292,7 @@ async function startSileroSession(
 
       speaking = true;
       trailingSilenceSamples = 0;
+      callbacks.onSpeechStart?.();
       const leadIn: number[] = [];
       preRoll.drainInto(leadIn);
       feed?.pushNumbers(leadIn);
