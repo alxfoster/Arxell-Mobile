@@ -89,9 +89,7 @@ describe('useChatSession reasoning wire (local)', () => {
     expect(captured.current.reasoning_format).toBe('auto');
     expect(captured.current.chat_template_kwargs?.enable_thinking).toBe(false);
     expect(captured.current.thinking_budget_tokens).toBe(0);
-    expect(captured.current.thinking_budget_message).toMatch(
-      /response-language instructions/,
-    );
+    expect(captured.current.thinking_budget_message).toBeUndefined();
   });
 
   it('gives LFM2.5-8B-A1B a small OFF budget to preserve output-language stability', async () => {
@@ -110,9 +108,7 @@ describe('useChatSession reasoning wire (local)', () => {
 
     expect(captured.current.chat_template_kwargs?.enable_thinking).toBe(false);
     expect(captured.current.thinking_budget_tokens).toBe(32);
-    expect(captured.current.thinking_budget_message).toMatch(
-      /response-language instructions/,
-    );
+    expect(captured.current.thinking_budget_message).toBeUndefined();
   });
 
   it('non-reasoning model: reasoning_format auto (no-op) but no enable_thinking hint', async () => {

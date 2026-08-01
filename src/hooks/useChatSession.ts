@@ -181,12 +181,13 @@ const prepareCompletion = async ({
       ...cleanCompletionParams.chat_template_kwargs,
       enable_thinking: false,
     };
-    // llama.rn uses the template-detected thinking tags to force the block
+    // llama.rn uses the template-detected thinking end tag to force the block
     // closed at this budget. LFM2.5-8B-A1B is always-reasoning and can drift to
     // another language when its block is closed at token zero, so permit a
-    // small orientation budget before the same hidden handoff. Other models
-    // retain the strict zero-token fallback. Templates that honor the flag and
-    // never open a block are unaffected by either value.
+    // small orientation budget before the hidden handoff. Other models retain
+    // the strict zero-token fallback. Do not provide a natural-language
+    // thinking_budget_message: templates that mishandle the forced boundary
+    // can expose or imitate that internal text at the start of the answer.
     const activeModelIdentity = [
       modelStore.activeModel?.name,
       modelStore.activeModel?.filename,
@@ -199,8 +200,6 @@ const prepareCompletion = async ({
       .toLowerCase();
     const isLfm25EightBA1B = activeModelIdentity.includes('lfm258ba1b');
     cleanCompletionParams.thinking_budget_tokens = isLfm25EightBA1B ? 32 : 0;
-    cleanCompletionParams.thinking_budget_message =
-      '\nAnswer directly and follow all requested response-language instructions.\n';
   }
   // Graded effort (gpt-oss-style): carried by the resolver-populated intent.
   const reasoningEffort = cleanCompletionParams.reasoning?.effort;
