@@ -30,23 +30,26 @@ export interface STTMicButtonProps {
 export const STTMicButton = observer(({color}: STTMicButtonProps) => {
   const theme = useTheme();
   const styles = createStyles({theme});
-  const listening = sttStore.isListening;
+  // Only the listening phase represents an open, active microphone. Starting
+  // and final processing are busy states, but must not retain the active fill.
+  const listening = sttStore.sessionState.mode === 'listening';
   const starting = sttStore.sessionState.mode === 'starting';
   const processing = sttStore.sessionState.mode === 'processing';
   const busy = starting || processing;
+  const lastError = sttStore.lastError;
   const shownError = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (!sttStore.lastError) {
+    if (!lastError) {
       shownError.current = null;
       return;
     }
-    if (sttStore.lastError === shownError.current) {
+    if (lastError === shownError.current) {
       return;
     }
-    shownError.current = sttStore.lastError;
-    Alert.alert('Voice input unavailable', sttStore.lastError);
-  }, [sttStore.lastError]);
+    shownError.current = lastError;
+    Alert.alert('Voice input unavailable', lastError);
+  }, [lastError]);
 
   const handlePress = () => {
     if (sttStore.isInstallingModels || busy) {
@@ -107,6 +110,7 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
         <ActivityIndicator size={20} />
       ) : (
         <Icon
+          testID="stt-mic-icon"
           name={
             listening
               ? 'stop'
@@ -115,11 +119,9 @@ export const STTMicButton = observer(({color}: STTMicButtonProps) => {
                 : 'download'
           }
           size={28}
-          color={
-            listening
-              ? theme.colors.onSecondaryContainer
-              : (color ?? theme.colors.secondary)
-          }
+          // The active container is blue in the dark theme, so use a fixed
+          // black glyph rather than a theme accent that can disappear into it.
+          color={listening ? '#000000' : (color ?? theme.colors.secondary)}
         />
       )}
     </Pressable>

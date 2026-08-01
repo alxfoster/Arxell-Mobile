@@ -667,7 +667,10 @@ export const ChatInput = observer(
               ) : (
                 isSendButtonVisible && (
                   <View style={{opacity: sendButtonOpacity}}>
-                    <SendButton color={onSurfaceColor} onPress={handleSend} />
+                    <SendButton
+                      color={theme.colors.secondary}
+                      onPress={handleSend}
+                    />
                   </View>
                 )
               )}

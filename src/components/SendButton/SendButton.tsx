@@ -44,8 +44,8 @@ export const SendButton = ({
       {theme.icons?.sendButtonIcon?.() ?? (
         <SendIcon
           stroke={color ?? theme.colors.inverseOnSurface}
-          width={24}
-          height={24}
+          width={28}
+          height={28}
         />
       )}
     </TouchableOpacity>

@@ -14,6 +14,8 @@ import LiveAudioStream from 'react-native-live-audio-stream';
  * first mic access.
  */
 
+const STOP_TIMEOUT_MS = 1500;
+
 const OPTIONS = {
   sampleRate: 16000,
   channels: 1,
@@ -123,11 +125,27 @@ export const audioCapture = {
   },
 
   async stop() {
+    // Detach first: some Android implementations do not settle stop() when it
+    // is requested near a native data event. No more PCM should reach the VAD
+    // while shutdown is pending.
+    subscriber = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await LiveAudioStream.stop();
+      const outcome = await Promise.race([
+        LiveAudioStream.stop().then(() => 'stopped' as const),
+        new Promise<'timeout'>(resolve => {
+          timer = setTimeout(() => resolve('timeout'), STOP_TIMEOUT_MS);
+        }),
+      ]);
+      if (outcome === 'timeout') {
+        console.warn('[audioCapture] stop timed out');
+      }
     } catch (err) {
       console.warn('[audioCapture] stop failed:', err);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
     }
-    subscriber = null;
   },
 };

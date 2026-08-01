@@ -235,8 +235,14 @@ async function startSileroSession(
       // that can no longer belong to this single-utterance session.
       if (stopCapture) {
         acceptingAudio = false;
-        await audioCapture.stop();
         pending.length = 0;
+        // Do not gate final recognition on the native recorder's stop promise.
+        // On some Android devices it can remain pending when endpointing is
+        // initiated near an audio event, leaving the UI in `processing` and
+        // preventing auto-submit. acceptingAudio already rejects late chunks.
+        audioCapture.stop().catch(error => {
+          console.warn('[sttRuntime] endpoint capture stop failed:', error);
+        });
       }
 
       try {
@@ -244,9 +250,9 @@ async function startSileroSession(
         const text = streamId ? await engine.endStream(streamId) : '';
         streamId = null;
         stopped = true;
-        if (text.trim()) {
-          callbacks.onFinalText(text);
-        }
+        // Completion must be reported even when recognition produced no text;
+        // otherwise the store remains in `processing` indefinitely.
+        callbacks.onFinalText(text);
       } catch (error) {
         stopped = true;
         callbacks.onError(error);

@@ -2,6 +2,7 @@ import React from 'react';
 
 import {fireEvent, render} from '../../../../jest/test-utils';
 import {Alert} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {L10nContext} from '../../../utils';
 import {l10n} from '../../../locales';
@@ -35,6 +36,7 @@ describe('STTMicButton', () => {
 
   it('stops an in-flight session on tap', () => {
     (sttStore as any).isListening = true;
+    (sttStore as any).sessionState = {mode: 'listening'};
     const {getByTestId} = renderButton();
     fireEvent.press(getByTestId('stt-mic-button'));
     expect(sttStore.stop).toHaveBeenCalledTimes(1);
@@ -67,14 +69,25 @@ describe('STTMicButton', () => {
     expect(sttStore.stop).not.toHaveBeenCalled();
   });
 
+  it('uses a black icon while the microphone is actively listening', () => {
+    (sttStore as any).isListening = true;
+    (sttStore as any).sessionState = {mode: 'listening'};
+    const {UNSAFE_getByType} = renderButton();
+
+    expect(UNSAFE_getByType(Icon).props.color).toBe('#000000');
+  });
+
   it('cannot start another recording while final transcription is processing', () => {
+    (sttStore as any).isListening = true;
     (sttStore as any).sessionState = {mode: 'processing'};
     const {getByLabelText} = renderButton();
+    const button = getByLabelText('Processing voice input');
 
-    fireEvent.press(getByLabelText('Processing voice input'));
+    fireEvent.press(button);
 
     expect(sttStore.start).not.toHaveBeenCalled();
     expect(sttStore.stop).not.toHaveBeenCalled();
+    expect(button.props.style[1]).toBeFalsy();
   });
 
   it('shows a disabled ready indicator while the native models start', () => {

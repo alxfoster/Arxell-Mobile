@@ -112,4 +112,79 @@ describe('sttRuntime silero session', () => {
     expect(mockEndStream).toHaveBeenCalledWith('stream-1');
     expect(onFinalText).toHaveBeenCalledWith('complete phrase');
   });
+
+  it('finalizes after automatic endpointing even when recorder stop never settles', async () => {
+    mockVadProcess
+      .mockResolvedValueOnce([0.9])
+      .mockResolvedValueOnce([0.9])
+      .mockResolvedValueOnce([0]);
+    mockAudioCapture.stop.mockImplementationOnce(
+      () => new Promise<void>(() => {}),
+    );
+    const onFinalText = jest.fn();
+    let resolveFinal!: () => void;
+    const finalized = new Promise<void>(resolve => {
+      resolveFinal = resolve;
+    });
+
+    await sttRuntime.startSession(
+      {
+        endpoint: 'silero',
+        endpointSilenceMs: 1,
+        asrEngine: 'moonshine',
+      },
+      {
+        onPartialText: jest.fn(),
+        onFinalText: text => {
+          onFinalText(text);
+          resolveFinal();
+        },
+        onEndpoint: jest.fn(),
+        onError: jest.fn(),
+      },
+    );
+
+    mockSubscriber!(new Float32Array(32).fill(0.5));
+    mockSubscriber!(new Float32Array(32).fill(0.5));
+    mockSubscriber!(new Float32Array(32));
+
+    await Promise.race([
+      finalized,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('finalization timed out')), 1000),
+      ),
+    ]);
+
+    expect(onFinalText).toHaveBeenCalledWith('complete phrase');
+    await sttRuntime.stopSession(false);
+  });
+
+  it('reports completion when final recognition returns no text', async () => {
+    mockVadProcess.mockResolvedValue([0.9]);
+    mockEndStream.mockResolvedValue('');
+    const onFinalText = jest.fn();
+
+    await sttRuntime.startSession(
+      {
+        endpoint: 'silero',
+        endpointSilenceMs: 1200,
+        asrEngine: 'moonshine',
+      },
+      {
+        onPartialText: jest.fn(),
+        onFinalText,
+        onEndpoint: jest.fn(),
+        onError: jest.fn(),
+      },
+    );
+
+    // Two speech frames put Silero into the speaking state, so stopping takes
+    // the same finalize path used by automatic end-of-speech detection.
+    mockSubscriber!(new Float32Array([0.5]));
+    mockSubscriber!(new Float32Array([0.5]));
+    await sttRuntime.stopSession(true);
+
+    expect(mockEndStream).toHaveBeenCalledWith('stream-1');
+    expect(onFinalText).toHaveBeenCalledWith('');
+  });
 });

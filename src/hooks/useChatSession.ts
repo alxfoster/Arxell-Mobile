@@ -163,10 +163,11 @@ const prepareCompletion = async ({
   // non-reasoning models and the value that extracts reasoning into
   // reasoning_content instead of leaking raw channel/think markers into content
   // (e.g. gemma-4 emits an empty <|channel>thought block even when thinking is
-  // off). On/off is carried solely by enable_thinking. "Off" stays a best-effort
-  // hint — it never strips reasoning the model still returns (rendered by
-  // ReasoningBlock); separate from include_thinking_in_context, which only
-  // governs what prior <think> we SEND.
+  // off). On/off is carried by enable_thinking. Some always-reasoning templates
+  // (notably LFM2.5-8B-A1B) ignore that flag, so OFF also applies a zero-token
+  // native thinking budget. This closes a recognized thinking block immediately
+  // instead of merely hiding work the model performed. It is separate from
+  // include_thinking_in_context, which only governs what prior <think> we SEND.
   const isReasoningCapable =
     resolveReasoningCapability(
       modelStore.activeModel,
@@ -180,6 +181,26 @@ const prepareCompletion = async ({
       ...cleanCompletionParams.chat_template_kwargs,
       enable_thinking: false,
     };
+    // llama.rn uses the template-detected thinking tags to force the block
+    // closed at this budget. LFM2.5-8B-A1B is always-reasoning and can drift to
+    // another language when its block is closed at token zero, so permit a
+    // small orientation budget before the same hidden handoff. Other models
+    // retain the strict zero-token fallback. Templates that honor the flag and
+    // never open a block are unaffected by either value.
+    const activeModelIdentity = [
+      modelStore.activeModel?.name,
+      modelStore.activeModel?.filename,
+      modelStore.activeModel?.hfUrl,
+      modelStore.activeModel?.downloadUrl,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
+    const isLfm25EightBA1B = activeModelIdentity.includes('lfm258ba1b');
+    cleanCompletionParams.thinking_budget_tokens = isLfm25EightBA1B ? 32 : 0;
+    cleanCompletionParams.thinking_budget_message =
+      '\nAnswer directly and follow all requested response-language instructions.\n';
   }
   // Graded effort (gpt-oss-style): carried by the resolver-populated intent.
   const reasoningEffort = cleanCompletionParams.reasoning?.effort;

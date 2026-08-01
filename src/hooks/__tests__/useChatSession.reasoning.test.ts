@@ -82,12 +82,37 @@ describe('useChatSession reasoning wire (local)', () => {
     ).toBeUndefined();
   });
 
-  it('axis-1 OFF emits enable_thinking:false + reasoning_format auto', async () => {
+  it('axis-1 OFF disables the template and caps always-on thinking at zero tokens', async () => {
     setSettings({enable_thinking: false});
     const captured = captureCompletionParams();
     await send();
     expect(captured.current.reasoning_format).toBe('auto');
     expect(captured.current.chat_template_kwargs?.enable_thinking).toBe(false);
+    expect(captured.current.thinking_budget_tokens).toBe(0);
+    expect(captured.current.thinking_budget_message).toMatch(
+      /response-language instructions/,
+    );
+  });
+
+  it('gives LFM2.5-8B-A1B a small OFF budget to preserve output-language stability', async () => {
+    setSettings({enable_thinking: false});
+    const model = {
+      ...(modelsList as any)[0],
+      id: 'lfm-model',
+      name: 'LFM2.5 8B-A1B',
+      filename: 'LFM2.5-8B-A1B-Q4_K_M.gguf',
+    };
+    modelStore.models = [model] as any;
+    modelStore.activeModelId = model.id;
+    const captured = captureCompletionParams();
+
+    await send();
+
+    expect(captured.current.chat_template_kwargs?.enable_thinking).toBe(false);
+    expect(captured.current.thinking_budget_tokens).toBe(32);
+    expect(captured.current.thinking_budget_message).toMatch(
+      /response-language instructions/,
+    );
   });
 
   it('non-reasoning model: reasoning_format auto (no-op) but no enable_thinking hint', async () => {
@@ -113,6 +138,8 @@ describe('useChatSession reasoning wire (local)', () => {
     expect(
       captured.current.chat_template_kwargs?.enable_thinking,
     ).toBeUndefined();
+    expect(captured.current.thinking_budget_tokens).toBeUndefined();
+    expect(captured.current.thinking_budget_message).toBeUndefined();
   });
 
   it('axis-2 effort emits chat_template_kwargs.reasoning_effort', async () => {
