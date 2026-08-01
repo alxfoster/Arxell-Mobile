@@ -1,21 +1,7 @@
 import React from 'react';
-import {Linking, Alert} from 'react-native';
-import {fireEvent, render, act, waitFor} from '../../../../../jest/test-utils';
+import {fireEvent, render} from '../../../../../jest/test-utils';
 import {BenchResultCard} from '../BenchResultCard';
 import {BenchmarkResult, CacheType} from '../../../../utils/types';
-import {
-  NetworkError,
-  AppCheckError,
-  ServerError,
-} from '../../../../utils/errors';
-
-// Mock Linking - need to spy on the actual Linking object
-const mockOpenURL = jest.fn().mockImplementation(() => Promise.resolve());
-jest.spyOn(Linking, 'openURL').mockImplementation(mockOpenURL);
-
-// Mock Alert
-jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
-
 describe('BenchResultCard', () => {
   const mockResult: BenchmarkResult = {
     config: {
@@ -59,31 +45,15 @@ describe('BenchResultCard', () => {
     },
   };
 
-  const mockSubmittedResult = {
-    ...mockResult,
-    submitted: true,
-  };
-
-  const mockLocalModelResult = {
-    ...mockResult,
-    oid: undefined, // Local models don't have an OID
-  };
-
   const mockOnDelete = jest.fn();
-  const mockOnShare = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOnShare.mockResolvedValue(undefined);
   });
 
   it('renders benchmark result data correctly', () => {
     const {getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={mockResult} onDelete={mockOnDelete} />,
     );
 
     // Model info
@@ -108,250 +78,34 @@ describe('BenchResultCard', () => {
     // Test with milliseconds
     const shortResult = {...mockResult, wallTimeMs: 500};
     const {getByText, rerender} = render(
-      <BenchResultCard
-        result={shortResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={shortResult} onDelete={mockOnDelete} />,
     );
     expect(getByText('500ms')).toBeTruthy();
 
     // Test with seconds
     const secondsResult = {...mockResult, wallTimeMs: 3500};
     rerender(
-      <BenchResultCard
-        result={secondsResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={secondsResult} onDelete={mockOnDelete} />,
     );
     expect(getByText('3s')).toBeTruthy();
 
     // Test with minutes and seconds
     const minutesResult = {...mockResult, wallTimeMs: 125000}; // 2m 5s
     rerender(
-      <BenchResultCard
-        result={minutesResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={minutesResult} onDelete={mockOnDelete} />,
     );
     expect(getByText('2m 5s')).toBeTruthy();
   });
 
   it('handles delete button press', () => {
     const {getByTestId} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={mockResult} onDelete={mockOnDelete} />,
     );
 
     const deleteButton = getByTestId('delete-result-button');
     fireEvent.press(deleteButton);
 
     expect(mockOnDelete).toHaveBeenCalledWith(mockResult.timestamp);
-  });
-
-  it('shows submitted state correctly', () => {
-    const {getByText} = render(
-      <BenchResultCard
-        result={mockSubmittedResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    expect(getByText(/✓ Shared to/)).toBeTruthy();
-    expect(getByText(/AI Phone Leaderboard ↗/)).toBeTruthy();
-  });
-
-  it('disables sharing for local models', () => {
-    const {getByText} = render(
-      <BenchResultCard
-        result={mockLocalModelResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    expect(getByText('Cannot share')).toBeTruthy();
-  });
-
-  it('opens leaderboard when link is clicked', () => {
-    const {getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const leaderboardLink = getByText('View leaderboard ↗');
-    fireEvent.press(leaderboardLink);
-
-    expect(Linking.openURL).toHaveBeenCalledWith(
-      'https://huggingface.co/spaces/a-ghorbani/ai-phone-leaderboard',
-    );
-  });
-
-  it('submits benchmark data when submit button is pressed', async () => {
-    const {getByTestId} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    expect(mockOnShare).toHaveBeenCalledWith(mockResult);
-  });
-
-  it('handles network errors', async () => {
-    mockOnShare.mockRejectedValueOnce(
-      new NetworkError('No internet connection. Please connect and try again.'),
-    );
-
-    const {getByTestId, getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    await waitFor(() => {
-      expect(getByText(/📶.*No internet connection/)).toBeTruthy();
-      expect(getByText('Check connection & retry')).toBeTruthy();
-    });
-  });
-
-  it('handles app check errors', async () => {
-    mockOnShare.mockRejectedValueOnce(
-      new AppCheckError('App verification failed.'),
-    );
-
-    const {getByTestId, getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    await waitFor(() => {
-      expect(getByText(/🔒.*App verification failed/)).toBeTruthy();
-      expect(getByText('Retry submission')).toBeTruthy();
-    });
-  });
-
-  it('handles server errors', async () => {
-    mockOnShare.mockRejectedValueOnce(
-      new ServerError('Our servers are experiencing issues.'),
-    );
-
-    const {getByTestId, getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    await waitFor(() => {
-      expect(getByText(/🖥️.*Our servers are experiencing issues/)).toBeTruthy();
-      expect(getByText('Try again later')).toBeTruthy();
-    });
-  });
-
-  it('handles unknown errors', async () => {
-    mockOnShare.mockRejectedValueOnce(new Error('Unknown error occurred'));
-
-    const {getByTestId, getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    await waitFor(() => {
-      expect(getByText(/❌.*Unknown error occurred/)).toBeTruthy();
-      expect(getByText('Retry')).toBeTruthy();
-    });
-  });
-
-  it('allows retrying after a network error', async () => {
-    mockOnShare.mockRejectedValueOnce(new NetworkError('Network error'));
-
-    const {getByTestId, getByText} = render(
-      <BenchResultCard
-        result={mockResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    // First attempt - triggers error
-    const submitButton = getByTestId('submit-benchmark-button');
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    // Clear the mock so the retry will succeed
-    mockOnShare.mockClear();
-    mockOnShare.mockResolvedValueOnce(undefined);
-
-    // Retry
-    await waitFor(() => {
-      const retryButton = getByText('Check connection & retry');
-      fireEvent.press(retryButton);
-    });
-
-    expect(mockOnShare).toHaveBeenCalledWith(mockResult);
-  });
-
-  it('opens leaderboard when link is clicked on submitted results', () => {
-    const {getByText} = render(
-      <BenchResultCard
-        result={mockSubmittedResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
-    );
-
-    const leaderboardText = getByText(/AI Phone Leaderboard ↗/);
-    fireEvent.press(leaderboardText);
-
-    expect(Linking.openURL).toHaveBeenCalledWith(
-      'https://huggingface.co/spaces/a-ghorbani/ai-phone-leaderboard',
-    );
   });
 
   it('renders without initSettings or peakMemoryUsage', () => {
@@ -363,11 +117,7 @@ describe('BenchResultCard', () => {
     };
 
     const {queryByText} = render(
-      <BenchResultCard
-        result={minimalResult}
-        onDelete={mockOnDelete}
-        onShare={mockOnShare}
-      />,
+      <BenchResultCard result={minimalResult} onDelete={mockOnDelete} />,
     );
 
     // These should not be in the DOM
@@ -396,11 +146,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={resultWithAuto}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={resultWithAuto} onDelete={mockOnDelete} />,
       );
 
       expect(getByText(/Flash Attention Enabled/)).toBeTruthy();
@@ -426,11 +172,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={resultWithOn}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={resultWithOn} onDelete={mockOnDelete} />,
       );
 
       expect(getByText(/Flash Attention Enabled/)).toBeTruthy();
@@ -456,11 +198,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={resultWithOff}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={resultWithOff} onDelete={mockOnDelete} />,
       );
 
       expect(getByText(/Flash Attention Disabled/)).toBeTruthy();
@@ -486,11 +224,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={legacyResult}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={legacyResult} onDelete={mockOnDelete} />,
       );
 
       // Should display as enabled (legacy true -> auto)
@@ -517,11 +251,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={legacyResult}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={legacyResult} onDelete={mockOnDelete} />,
       );
 
       // Should display as disabled (legacy false -> off)
@@ -549,11 +279,7 @@ describe('BenchResultCard', () => {
       };
 
       const {getByText} = render(
-        <BenchResultCard
-          result={resultWithOff}
-          onDelete={mockOnDelete}
-          onShare={mockOnShare}
-        />,
+        <BenchResultCard result={resultWithOff} onDelete={mockOnDelete} />,
       );
 
       expect(getByText(/Flash Attention Disabled/)).toBeTruthy();

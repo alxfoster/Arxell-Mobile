@@ -106,7 +106,6 @@
       },
       "errors": {
         "networkRetry": "네트워크 연결 확인 후 다시 시도",
-        "appCheckRetry": "제출 다시 시도",
         "serverRetry": "나중에 다시 시도해 주세요",
         "genericRetry": "다시 시도",
         "failedToSubmit": "벤치마크 제출 실패"
@@ -506,12 +505,7 @@
         "total": "총 용량: ",
         "usage": "점유율: "
       },
-      "byteSizes": [
-        "바이트",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["바이트", "KB", "MB", "GB"]
     },
     "exportUtils": {
       "fileSaved": "파일 저장됨",

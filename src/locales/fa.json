@@ -969,12 +969,7 @@
         "total": "کل: ",
         "usage": "مصرف: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1233,7 +1228,6 @@
       },
       "errors": {
         "networkRetry": "اتصال را بررسی کنید و دوباره تلاش کنید",
-        "appCheckRetry": "ارسال مجدد",
         "serverRetry": "بعداً دوباره تلاش کنید",
         "genericRetry": "تلاش مجدد",
         "failedToSubmit": "ارسال نتیجه بنچمارک ناموفق بود"

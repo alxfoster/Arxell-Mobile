@@ -1,0 +1,72 @@
+name: iOS validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    name: Build Arxell for iOS Simulator
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install JavaScript dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Create CI configuration
+        run: |
+          cp ios/Config/Env.xcconfig.example ios/Config/Env.xcconfig
+          cp .env.example .env
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Verify renamed project
+        working-directory: ios
+        run: |
+          test -d Arxell.xcworkspace
+          xcodebuild -workspace Arxell.xcworkspace -scheme Arxell -showBuildSettings >/dev/null
+
+      - name: Build without code signing
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace Arxell.xcworkspace \
+            -scheme Arxell \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            build | tee ios-build.log
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios/ios-build.log
+          if-no-files-found: ignore

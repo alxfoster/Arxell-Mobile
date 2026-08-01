@@ -577,12 +577,7 @@
         "total": "Totale : ",
         "usage": "Utilisation : "
       },
-      "byteSizes": [
-        "Octets",
-        "Ko",
-        "Mo",
-        "Go"
-      ]
+      "byteSizes": ["Octets", "Ko", "Mo", "Go"]
     }
   },
   "validation": {
@@ -702,7 +697,6 @@
       },
       "errors": {
         "networkRetry": "Vérifier la connexion et réessayer",
-        "appCheckRetry": "Réessayer la soumission",
         "serverRetry": "Réessayer plus tard",
         "genericRetry": "Réessayer",
         "failedToSubmit": "Échec de soumission du benchmark"

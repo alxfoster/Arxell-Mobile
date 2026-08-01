@@ -101,11 +101,6 @@ yarn android:build:e2e
 which ships the automation bridge. The `prod` flavor has no bridge — specs
 will silently fail there.
 
-**Firebase.** `android/app/google-services.json` (gitignored) must contain
-client entries for both `com.pocketpalai` and `com.pocketpalai.e2e`. If the
-build fails with a google-services plugin error, the `.e2e` client entry is
-missing from your local copy.
-
 ### Unified E2E Runner
 
 All local test execution goes through a single `yarn e2e` command:

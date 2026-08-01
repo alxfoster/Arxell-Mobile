@@ -18,8 +18,6 @@ prepare_react_native_project!
 #   use_frameworks! :linkage => linkage.to_sym
 # end
 use_frameworks! :linkage => :static
-$RNFirebaseAsStaticFramework = true
-
 ENV['RCT_NEW_ARCH_ENABLED'] = '1'
 
 target 'Arxell' do
@@ -30,15 +28,6 @@ target 'Arxell' do
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
-
-  # # Required for Firebase with New Architecture
-  # pod 'Firebase',         :modular_headers => true
-  # pod 'FirebaseCore',     :modular_headers => true
-  # pod 'FirebaseAppCheck', :modular_headers => true
-  # pod 'GoogleUtilities',  :modular_headers => true
-
-  # # Native module for @react-native-firebase/app-check
-  # pod 'RNFBAppCheck', :path => '../node_modules/@react-native-firebase/app-check'
 
   target 'ArxellTests' do
     inherit! :complete

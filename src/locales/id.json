@@ -969,12 +969,7 @@
         "total": "Total: ",
         "usage": "Penggunaan: "
       },
-      "byteSizes": [
-        "Byte",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Byte", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1233,7 +1228,6 @@
       },
       "errors": {
         "networkRetry": "Periksa koneksi & coba lagi",
-        "appCheckRetry": "Coba kirim lagi",
         "serverRetry": "Coba lagi nanti",
         "genericRetry": "Coba lagi",
         "failedToSubmit": "Gagal mengirim benchmark"

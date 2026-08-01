@@ -913,12 +913,7 @@
         "total": "Łącznie: ",
         "usage": "Wykorzystanie: "
       },
-      "byteSizes": [
-        "Bajtów",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bajtów", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1073,7 +1068,6 @@
       },
       "errors": {
         "networkRetry": "Sprawdź połączenie i spróbuj ponownie",
-        "appCheckRetry": "Spróbuj ponownie przesłać zgłoszenie",
         "serverRetry": "Spróbuj ponownie później",
         "genericRetry": "Ponów",
         "failedToSubmit": "Nie udało się przesłać wyników testu porównawczego"

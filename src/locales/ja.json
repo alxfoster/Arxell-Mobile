@@ -969,12 +969,7 @@
         "total": "合計: ",
         "usage": "使用率: "
       },
-      "byteSizes": [
-        "B",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["B", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1233,7 +1228,6 @@
       },
       "errors": {
         "networkRetry": "接続を確認して再試行",
-        "appCheckRetry": "送信をやり直す",
         "serverRetry": "後でもう一度お試しください",
         "genericRetry": "再試行",
         "failedToSubmit": "ベンチマーク結果の送信に失敗しました"

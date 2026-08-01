@@ -3,8 +3,6 @@ import React from 'react';
 import {cloneDeep} from 'lodash';
 import {LlamaContext} from 'llama.rn';
 
-import {submitBenchmark} from '../../../api/benchmark';
-
 import {
   act,
   fireEvent,
@@ -19,12 +17,8 @@ import {
 
 import {BenchmarkScreen} from '../BenchmarkScreen';
 
-import {benchmarkStore, modelStore, uiStore} from '../../../store';
+import {benchmarkStore, modelStore} from '../../../store';
 import {mockLlamaContextParams} from '../../../../jest/fixtures/models';
-
-jest.mock('../../../api/benchmark', () => ({
-  submitBenchmark: jest.fn().mockResolvedValue(undefined),
-}));
 
 describe('BenchmarkScreen', () => {
   beforeEach(() => {
@@ -126,26 +120,6 @@ describe('BenchmarkScreen', () => {
   });
 
   describe('Benchmark Execution', () => {
-    it('handles submission of benchmark results', async () => {
-      const {getByTestId} = render(<BenchmarkScreen />);
-
-      const submitButton = getByTestId('submit-benchmark-button');
-      fireEvent.press(submitButton);
-
-      await waitFor(() => {
-        expect(getByTestId('share-benchmark-dialog')).toBeDefined();
-      });
-
-      const confirmButton = getByTestId(
-        'share-benchmark-dialog-confirm-button',
-      );
-      fireEvent.press(confirmButton);
-
-      await waitFor(() => {
-        expect(submitBenchmark).toHaveBeenCalled();
-      });
-    });
-
     it('should show benchmark loading indicator during execution', async () => {
       modelStore.activeModelId = modelStore.models[0].id;
       modelStore.context = new LlamaContext(mockLlamaContextParams);
@@ -228,181 +202,6 @@ describe('BenchmarkScreen', () => {
     it('renders device info card', () => {
       const {getByText} = render(<BenchmarkScreen />);
       expect(getByText('Device Information')).toBeDefined();
-    });
-
-    it('should include device info in benchmark submission', async () => {
-      const {getByTestId} = render(<BenchmarkScreen />);
-
-      // Wait for device info to be collected
-      await waitFor(() => {
-        expect(getByTestId('device-info-card')).toBeDefined();
-      });
-
-      // Trigger benchmark submission
-      const submitButton = getByTestId('submit-benchmark-button');
-      fireEvent.press(submitButton);
-
-      const confirmButton = getByTestId(
-        'share-benchmark-dialog-confirm-button',
-      );
-      fireEvent.press(confirmButton);
-
-      // Verify device info is included in submission
-      await waitFor(() => {
-        expect(submitBenchmark).toHaveBeenCalledWith(
-          expect.objectContaining({
-            model: expect.any(String),
-            systemName: expect.any(String),
-            systemVersion: expect.any(String),
-          }),
-          expect.any(Object),
-        );
-      });
-    });
-  });
-
-  describe('Share Dialog Preferences', () => {
-    it('should respect "dont show again" preference when is false', async () => {
-      benchmarkStore.results = [
-        cloneDeep(mockResult),
-        cloneDeep(mockSubmittedResult),
-        cloneDeep(mockResult),
-      ];
-      // Force to show confirm dialog
-      uiStore.benchmarkShareDialog.shouldShow = true;
-
-      const {getByTestId, queryByTestId, getAllByTestId} = render(
-        <BenchmarkScreen />,
-      );
-
-      // Trigger share
-      const submitButton = getAllByTestId('submit-benchmark-button')[0];
-      fireEvent.press(submitButton);
-
-      // Wait for the dialog to appear
-      await waitFor(() => {
-        expect(getByTestId('share-benchmark-dialog')).toBeDefined();
-      });
-
-      // Set "don't show again"
-      const checkbox = getByTestId('dont-show-again-checkbox');
-      fireEvent.press(checkbox);
-
-      // Confirm share
-      const confirmButton = getByTestId(
-        'share-benchmark-dialog-confirm-button',
-      );
-      fireEvent.press(confirmButton);
-
-      // wait for the submission to be called
-      await waitFor(() => {
-        expect(submitBenchmark).toHaveBeenCalled();
-      });
-
-      await waitForElementToBeRemoved(
-        () => getByTestId('share-benchmark-dialog'),
-        {
-          timeout: 5000,
-        },
-      );
-
-      // wait for the dialog to be closed
-      await waitFor(
-        () => {
-          expect(queryByTestId('share-benchmark-dialog')).toBeNull();
-        },
-        {timeout: 5000},
-      );
-
-      // Verify preference was saved
-      expect(uiStore.setBenchmarkShareDialogPreference).toHaveBeenCalledWith(
-        false,
-      );
-
-      // Since the store is mock we need to manually set the state
-      uiStore.benchmarkShareDialog.shouldShow = false;
-
-      // Share another result
-      const submitButton2 = getByTestId('submit-benchmark-button');
-      fireEvent.press(submitButton2);
-
-      expect(queryByTestId('share-benchmark-dialog')).toBeNull();
-    });
-
-    it('should respect "dont show again" preference when is true', async () => {
-      benchmarkStore.results = [
-        cloneDeep(mockResult),
-        cloneDeep(mockSubmittedResult),
-        cloneDeep(mockResult),
-      ];
-      uiStore.benchmarkShareDialog.shouldShow = true;
-      const {getByTestId, queryByTestId, getAllByTestId} = render(
-        <BenchmarkScreen />,
-      );
-
-      // Trigger share
-      const submitButton = getAllByTestId('submit-benchmark-button')[0];
-      fireEvent.press(submitButton);
-
-      // Wait for the dialog to appear
-      await waitFor(() => {
-        expect(getByTestId('share-benchmark-dialog')).toBeDefined();
-      });
-
-      // Confirm share
-      const confirmButton = getByTestId(
-        'share-benchmark-dialog-confirm-button',
-      );
-      fireEvent.press(confirmButton);
-
-      // wait for the submission to be called
-      await waitFor(() => {
-        expect(submitBenchmark).toHaveBeenCalled();
-      });
-
-      await act(async () => {
-        benchmarkStore.results = [mockResult, mockSubmittedResult];
-      });
-
-      // wait for the dialog to be closed
-      await waitForElementToBeRemoved(
-        () => queryByTestId('share-benchmark-dialog'),
-        {timeout: 4000},
-      );
-
-      // Since the store is mock we need to manually set the state
-      uiStore.benchmarkShareDialog.shouldShow = true;
-
-      // Share another result
-      const submitButton2 = getByTestId('submit-benchmark-button');
-      fireEvent.press(submitButton2);
-
-      await waitFor(() => {
-        expect(getByTestId('share-benchmark-dialog')).toBeDefined();
-      });
-    });
-
-    it('should show raw data in share dialog', async () => {
-      const {getByTestId, getByText} = render(<BenchmarkScreen />);
-
-      // Trigger share
-      const submitButton = getByTestId('submit-benchmark-button');
-      fireEvent.press(submitButton);
-
-      // Show raw data
-      const viewRawDataButton = getByTestId(
-        'share-benchmark-dialog-view-raw-data-button',
-      );
-      fireEvent.press(viewRawDataButton);
-
-      // Verify raw data is shown
-      await waitFor(() => {
-        expect(
-          getByTestId('share-benchmark-dialog-raw-data-container'),
-        ).toBeDefined();
-      });
-      expect(getByText(/"deviceInfo":/)).toBeDefined();
-      expect(getByText(/"benchmark":/)).toBeDefined();
     });
   });
 

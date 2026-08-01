@@ -5,12 +5,6 @@ platform :android do
   lane :release_android_alpha do
     android_dir = File.expand_path('..', Dir.pwd)
     
-    # Create google-services.json from GitHub secret
-    File.write(
-      File.join(android_dir, "app/google-services.json"),
-      ENV["GOOGLE_SERVICES_JSON"]
-    )
-    
     # Build APK for GitHub Release.
     # flavor: "prod" is MANDATORY — task: "assemble" is a gradle meta-task
     # that, post-flavor, would build both prodRelease AND e2eRelease

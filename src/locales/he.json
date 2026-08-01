@@ -969,12 +969,7 @@
         "total": "סה\"כ: ",
         "usage": "שימוש: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1233,7 +1228,6 @@
       },
       "errors": {
         "networkRetry": "בדוק את החיבור ונסה שוב",
-        "appCheckRetry": "נסה לשלוח שוב",
         "serverRetry": "נסה שוב מאוחר יותר",
         "genericRetry": "נסה שוב",
         "failedToSubmit": "שליחת מבחן הביצועים נכשלה"

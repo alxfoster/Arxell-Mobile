@@ -106,7 +106,6 @@
       },
       "errors": {
         "networkRetry": "檢查連線並重試",
-        "appCheckRetry": "重試提交",
         "serverRetry": "稍後再試",
         "genericRetry": "重試",
         "failedToSubmit": "提交基準測試失敗"
@@ -330,12 +329,7 @@
       "confirmReset": "確認重置"
     },
     "usageStats": {
-      "byteSizes": [
-        "位元組",
-        "KB",
-        "MB",
-        "GB"
-      ],
+      "byteSizes": ["位元組", "KB", "MB", "GB"],
       "tooltip": {
         "usage": "使用率： ",
         "total": "總計： ",

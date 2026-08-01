@@ -990,12 +990,7 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1245,7 +1240,6 @@
       },
       "errors": {
         "networkRetry": "Check connection & retry",
-        "appCheckRetry": "Retry submission",
         "serverRetry": "Try again later",
         "genericRetry": "Retry",
         "failedToSubmit": "Failed to submit benchmark"

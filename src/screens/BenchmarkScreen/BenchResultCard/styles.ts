@@ -169,10 +169,6 @@ export const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.errorContainer || '#FFF9C4',
       borderColor: theme.colors.error || '#FBC02D',
     },
-    errorAppCheck: {
-      backgroundColor: theme.colors.errorContainer,
-      borderColor: theme.colors.error,
-    },
     errorServer: {
       backgroundColor: theme.colors.surfaceVariant,
       borderColor: theme.colors.onSurfaceVariant,

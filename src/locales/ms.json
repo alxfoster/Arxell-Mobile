@@ -969,12 +969,7 @@
         "total": "Jumlah: ",
         "usage": "Penggunaan: "
       },
-      "byteSizes": [
-        "Bait",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bait", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1233,7 +1228,6 @@
       },
       "errors": {
         "networkRetry": "Semak sambungan & cuba lagi",
-        "appCheckRetry": "Cuba hantar semula",
         "serverRetry": "Cuba lagi kemudian",
         "genericRetry": "Cuba lagi",
         "failedToSubmit": "Gagal menghantar tolok ukur"
