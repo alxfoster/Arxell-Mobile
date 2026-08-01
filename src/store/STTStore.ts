@@ -19,6 +19,10 @@ import type {
 const DEFAULT_ENDPOINT: STTEndpointStrategyId = 'silero';
 const LEGACY_ENDPOINT_SILENCE_MS = 700;
 const DEFAULT_ENDPOINT_SILENCE_MS = 1200;
+// Hands-free is conversational rather than compositional: once speech ends,
+// hand the turn to the model promptly. Single-tap dictation keeps the more
+// forgiving 1.2 s threshold so natural mid-sentence pauses are not truncated.
+const HANDS_FREE_ENDPOINT_SILENCE_MS = 750;
 const DEFAULT_AUTO_SUBMIT = true;
 const DEFAULT_ASR_ENGINE: STTASREngineId = 'moonshine';
 
@@ -262,7 +266,9 @@ export class STTStore {
       await sttRuntime.startSession(
         {
           endpoint: this.endpoint,
-          endpointSilenceMs: this.endpointSilenceMs,
+          endpointSilenceMs: this.handsFreeEnabled
+            ? Math.min(this.endpointSilenceMs, HANDS_FREE_ENDPOINT_SILENCE_MS)
+            : this.endpointSilenceMs,
           asrEngine: this.asrEngine,
         },
         {

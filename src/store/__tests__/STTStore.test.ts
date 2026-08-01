@@ -185,11 +185,20 @@ describe('STTStore', () => {
       (store as any).modelsInstalled = true;
     });
 
-    it('latches and starts listening', async () => {
+    it('latches and starts listening with a conversational endpoint delay', async () => {
       await store.enableHandsFree();
 
       expect(store.handsFreeEnabled).toBe(true);
       expect(mockStartSession).toHaveBeenCalledTimes(1);
+      expect(mockStartSession.mock.calls[0]![0].endpointSilenceMs).toBe(750);
+    });
+
+    it('respects a user-configured endpoint delay shorter than the hands-free cap', async () => {
+      store.endpointSilenceMs = 500;
+
+      await store.enableHandsFree();
+
+      expect(mockStartSession.mock.calls[0]![0].endpointSilenceMs).toBe(500);
     });
 
     it('reports confirmed speech for barge-in', async () => {
